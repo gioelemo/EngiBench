@@ -125,3 +125,9 @@ html_css_files: list[str] = []
 # -- Generate Changelog -------------------------------------------------
 
 sphinx_github_changelog_token = os.environ.get("SPHINX_GITHUB_CHANGELOG_TOKEN")
+
+# doctest options
+doctest_path = [
+    os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "tests", "tools")),
+    os.path.realpath(os.path.join(os.path.dirname(__file__), "utils")),
+]
