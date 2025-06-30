@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815
+# ruff: noqa: N806
 
 
 """Power Electronics problem."""

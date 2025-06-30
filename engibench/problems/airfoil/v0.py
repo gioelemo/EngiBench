@@ -22,6 +22,7 @@ import shutil
 from typing import Annotated, Any
 
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -532,8 +533,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             Any: The rendered design.
         """
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots()
         coords = design["coords"]
         alpha = design["angle_of_attack"]
@@ -561,8 +560,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             Any: Rendered optimization step history.
         """
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots()
         steps = np.array([step.step for step in optisteps_history])
         objectives = np.array([step.obj_values[0][0] for step in optisteps_history])

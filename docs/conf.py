@@ -93,7 +93,7 @@ html_context = {
     "version_info": {
         "current": release,
         "versions": {
-            "main": "/main/",
+            "main": "/",
         }
     }
 }
@@ -101,7 +101,7 @@ html_context = {
 # Add any tags to the versions dictionary
 import subprocess
 try:
-    tags = subprocess.check_output(['git', 'tag', '-l', 'v*.*.*']).decode().strip().split('\n')
+    tags = subprocess.check_output(['git', 'tag', '-l', '"v*.*.*"']).decode().strip().split('\n')
     for tag in tags:
         if tag:
             html_context["version_info"]["versions"][tag] = f"/{tag}/"

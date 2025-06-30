@@ -1,5 +1,3 @@
-# ruff: noqa: N806, N815 # Upper case
-
 """Use the sweep_data to set config parameters."""
 
 from engibench.problems.power_electronics.utils.config import Config

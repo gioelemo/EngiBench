@@ -10,6 +10,7 @@ import subprocess
 from typing import Annotated, Any
 
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -272,8 +273,6 @@ class HeatConduction3D(Problem[npt.NDArray]):
         print("For better visualization, also consider dedicated software like ParaView.")
         if design is None:
             design = self.initialize_design()
-
-        import matplotlib.pyplot as plt
 
         size = len(design) + 1
 
