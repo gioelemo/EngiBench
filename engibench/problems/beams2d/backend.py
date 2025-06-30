@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815, N816
+# ruff: noqa: N806, N815
 # Disabled variable name conventions
 
 """Beams 2D problem.

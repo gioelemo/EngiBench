@@ -10,6 +10,7 @@ import subprocess
 from typing import Annotated, Any
 
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -269,8 +270,6 @@ class HeatConduction2D(Problem[npt.NDArray]):
         """
         if design is None:
             design = self.initialize_design()
-
-        import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
 

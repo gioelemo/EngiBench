@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815, N816
+# ruff: noqa: N806
 # Disabled variable name conventions
 
 """Beams 2D problem."""
@@ -9,8 +9,10 @@ from dataclasses import field
 from typing import Annotated, Any
 
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+import seaborn as sns
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
@@ -300,9 +302,6 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             Any: The rendered design.
         """
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-
         fig, ax = plt.subplots(figsize=(8, 4))
         sns.heatmap(design, cmap="coolwarm", ax=ax, vmin=0, vmax=1)
 

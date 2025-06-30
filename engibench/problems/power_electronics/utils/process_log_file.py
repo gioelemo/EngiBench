@@ -1,5 +1,5 @@
 """Read from the log file to get the DcGain and Voltage Ripple values."""
-# ruff: noqa: N806, N815 # Upper case
+# ruff: noqa: N806 # Upper case
 
 import numpy as np
 
