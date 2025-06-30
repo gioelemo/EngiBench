@@ -230,6 +230,9 @@ pythonPlatform = "All"
 typeshedPath = "typeshed"
 enableTypeIgnoreComments = true
 
+# This is required as the CI pre-commit does not download the module (i.e. numpy, pygame)
+#   Therefore, we have to ignore missing imports
+reportMissingImports = "none"
 reportGeneralTypeIssues = "none"  # -> commented out raises a lot of errors
 reportUnboundVariable = "warning"
 
