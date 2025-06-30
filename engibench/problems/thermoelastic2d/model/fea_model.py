@@ -185,6 +185,9 @@ class FeaModel:
         change_evol = []
         obj = []
 
+        f0valm = 0.0
+        f0valt = 0.0
+
         while change > UPDATE_THRESHOLD or iterr < MIN_ITERATIONS:
             iterr += 1
             s_time = time.time()
