@@ -90,11 +90,11 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
     y_elements = nely + 1
 
     # Get even and odd Fp elements
-    if _fp is None:
-        _fp = np.zeros((x_elements * y_elements * 2,))
-    _fp = np.asarray(_fp)
-    fp_x = _fp[::2]  # 8450 / 2 = 4225 = 65 * 65
-    fp_y = _fp[1::2]
+    _fp_array: npt.NDArray[np.float64] = (
+        np.zeros((x_elements * y_elements * 2,)) if _fp is None else np.asarray(_fp)
+    )  # makes sure _fp is a numpy array
+    fp_x = _fp_array[::2]  # 8450 / 2 = 4225 = 65 * 65
+    fp_y = _fp_array[1::2]
 
     if _um is None:
         _um = np.zeros((x_elements * y_elements * 2,))
