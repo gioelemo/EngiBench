@@ -92,6 +92,7 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
     # Get even and odd Fp elements
     if _fp is None:
         _fp = np.zeros((x_elements * y_elements * 2,))
+    _fp = np.asarray(_fp)
     fp_x = _fp[::2]  # 8450 / 2 = 4225 = 65 * 65
     fp_y = _fp[1::2]
 
