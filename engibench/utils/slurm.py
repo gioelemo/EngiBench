@@ -82,9 +82,9 @@ class Job(Generic[DesignType]):
         problem = self.problem(config=self.args.problem_args)
         design = self.args.design_args.get("design", None)
         if self.job_type == "simulate":
-            return problem.simulate(design=design, config=self.args.simulate_args)
+            return problem.simulate(design=design, config=self.args.simulate_args)  # type: ignore  # noqa: PGH003
         if self.job_type == "optimize":
-            return problem.optimize(starting_point=design, config=self.args.optimize_args)
+            return problem.optimize(starting_point=design, config=self.args.optimize_args)  # type: ignore  # noqa: PGH003
         if self.job_type == "render":
             return problem.render(design=design, config=self.args.simulate_args)  # type: ignore  # noqa: PGH003
         msg = f"Unknown job type: {self.job_type}"
