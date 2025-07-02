@@ -215,6 +215,41 @@
         </a>
       </li>
       
+      <li class="version-item">
+        <a href="/v0.0.1/" class="version-link">
+          v0.0.1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha0/" class="version-link">
+          v0.0.1-alpha0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha1/" class="version-link">
+          v0.0.1-alpha1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha2/" class="version-link">
+          v0.0.1-alpha2
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha3/" class="version-link">
+          v0.0.1-alpha3
+          
+        </a>
+      </li>
+      
     </ul>
   </div>
 </div>
@@ -499,9 +534,9 @@ document.write(`
         <span class="n">problem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">problem</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">problem_args</span><span class="p">)</span>
         <span class="n">design</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">design_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;design&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_type</span> <span class="o">==</span> <span class="s2">&quot;simulate&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">simulate_args</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">simulate_args</span><span class="p">)</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_type</span> <span class="o">==</span> <span class="s2">&quot;optimize&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">optimize_args</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">optimize_args</span><span class="p">)</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_type</span> <span class="o">==</span> <span class="s2">&quot;render&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">problem</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">simulate_args</span><span class="p">)</span>  <span class="c1"># type: ignore  # noqa: PGH003</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Unknown job type: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_type</span><span class="si">}</span><span class="s2">&quot;</span>
