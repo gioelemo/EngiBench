@@ -28,7 +28,8 @@ from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.backend import inner_opt
-from engibench.problems.beams2d.backend import overhang_filter
+from engibench.problems.beams2d.backend import overhang_filter_d
+from engibench.problems.beams2d.backend import overhang_filter_x
 from engibench.problems.beams2d.backend import State
 from engibench.utils.upcast import upcast
 
@@ -232,18 +233,20 @@ class Beams2D(Problem[npt.NDArray]):
         optisteps_history = []
 
         if starting_point is None:
-            xPhys = x = base_config.volfrac * np.ones(base_config.nely * base_config.nelx, dtype=float)
+            xPhys = base_config.volfrac * np.ones((base_config.nelx, base_config.nely), dtype=float)
+            x = xPhys.ravel()
             dc = np.zeros(base_config.nely * base_config.nelx)
             dv = np.zeros(base_config.nely * base_config.nelx)
         else:
             starting_point = image_to_design(starting_point)
             assert starting_point is not None
-            xPhys = x = deepcopy(starting_point)
+            x = deepcopy(starting_point)
+            xPhys = x.reshape((base_config.nelx, base_config.nely))
             ce = calc_sensitivity(starting_point, st=self.__st, cfg=dataclasses.asdict(base_config))
             dc = (-base_config.penal * starting_point ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config.nely * base_config.nelx)
 
-        xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
+        xPrint = overhang_filter_x(xPhys) if base_config.overhang_constraint else xPhys.ravel()
         loop, change = (0, 1.0)
 
         while change > self.__st.min_change and loop < base_config.max_iter:
@@ -260,7 +263,11 @@ class Beams2D(Problem[npt.NDArray]):
 
             dc = (-base_config.penal * xPrint ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config.nely * base_config.nelx)
-            xPrint, dc, dv = overhang_filter(xPhys, dataclasses.asdict(base_config), dc, dv)  # MATLAB implementation
+            # MATLAB implementation:
+            if base_config.overhang_constraint:
+                xPrint, dc, dv = overhang_filter_d(xPhys, dc, dv)
+            else:
+                xPrint = xPhys.ravel()
 
             dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
             dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
