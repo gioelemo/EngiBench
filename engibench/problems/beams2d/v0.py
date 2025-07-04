@@ -29,7 +29,6 @@ from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.backend import inner_opt
 from engibench.problems.beams2d.backend import overhang_filter
-from engibench.problems.beams2d.backend import setup
 from engibench.problems.beams2d.backend import State
 from engibench.utils.upcast import upcast
 
@@ -202,7 +201,9 @@ class Beams2D(Problem[npt.NDArray]):
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
         if self.__st.ndof == 0:
-            self.__st = setup(dataclasses.asdict(simulate_config))
+            self.__st = State.new(
+                simulate_config.nelx, simulate_config.nely, simulate_config.rmin, simulate_config.forcedist
+            )
 
         if ce is None:
             ce = calc_sensitivity(design, st=self.__st, cfg=dataclasses.asdict(simulate_config))
@@ -225,7 +226,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         base_config = self.Config(**{**dataclasses.asdict(self.simulate_config), **(config or {})})
 
-        self.__st = setup(dataclasses.asdict(base_config))
+        self.__st = State.new(base_config.nelx, base_config.nely, base_config.rmin, base_config.forcedist)
 
         # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
@@ -242,7 +243,7 @@ class Beams2D(Problem[npt.NDArray]):
             dc = (-base_config.penal * starting_point ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config.nely * base_config.nelx)
 
-        xPrint, _, _ = overhang_filter(xPhys, dataclasses.asdict(base_config), dc, dv)
+        xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
         loop, change = (0, 1.0)
 
         while change > self.__st.min_change and loop < base_config.max_iter:

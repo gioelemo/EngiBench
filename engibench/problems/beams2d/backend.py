@@ -15,6 +15,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.sparse import coo_matrix
 from scipy.sparse import csc_array
+from scipy.sparse import sparray
 
 
 @dataclasses.dataclass
@@ -71,16 +72,6 @@ class State:
         """
         return {key: getattr(self, key) for key in keys if hasattr(self, key)}
 
-    def update(self, updates: dict[str, Any]) -> None:
-        """Update multiple state values efficiently.
-
-        Args:
-            updates (Dict[str, Any]): Dictionary of key-value pairs to update.
-        """
-        for key, value in updates.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
     def to_dict(self) -> dict[str, Any]:
         """Convert the dataclass to a dictionary representation.
 
@@ -88,6 +79,47 @@ class State:
             Dict[str, Any]: Dictionary containing all state values.
         """
         return dataclasses.asdict(self)
+
+    @classmethod
+    def new(cls, nelx: int, nely: int, rmin: float, forcedist: float) -> "State":
+        r"""Set up the scalars and matrices for optimization or simulation.
+
+        Args:
+            nelx: Number of elements in x direction.
+            nely: Number of elements in y direction.
+            rmin: ...
+            forcedist: ...
+
+        Returns:
+            State object with the relevant scalars and matrices used in optimization and simulation.
+        """
+        edofMat = edof_mat(nelx, nely)
+
+        H = h_mat(nelx, nely, rmin)
+
+        # BC's and support
+        ndof = 2 * (nelx + 1) * (nely + 1)
+        dofs = np.arange(ndof)
+        fixed = np.union1d(dofs[0 : 2 * (nely + 1) : 2], np.array([2 * (nelx + 1) * (nely + 1) - 1]))
+
+        # Solution and RHS vectors
+        f = np.zeros((ndof, 1))
+        # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
+        f[int(1 + (2 * forcedist * nelx) * (nely + 1)), 0] = -1
+
+        return cls(
+            ndof=ndof,
+            edofMat=edofMat,
+            iK=np.kron(edofMat, np.ones((8, 1))).flatten(),
+            jK=np.kron(edofMat, np.ones((1, 8))).flatten(),
+            H=H,
+            Hs=H.sum(1),
+            dofs=dofs,
+            fixed=fixed,
+            free=np.setdiff1d(dofs, fixed),
+            f=f,
+            u=np.zeros((ndof, 1)),
+        )
 
 
 def image_to_design(im: npt.NDArray) -> npt.NDArray:
@@ -189,84 +221,48 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None 
     return np.array(ce)
 
 
-def setup(cfg: dict[str, Any] | None = None) -> State:
-    r"""Set up the scalars and matrices for optimization or simulation.
+def edof_mat(nelx: int, nely: int) -> npt.NDArray[np.float64]:
+    n1 = ((nely + 1) * np.arange(nelx)[:, None] + np.arange(nely)).ravel()
+    n2 = n1 + nely + 1
+    return np.array(
+        [
+            2 * n1 + 2,
+            2 * n1 + 3,
+            2 * n2 + 2,
+            2 * n2 + 3,
+            2 * n2,
+            2 * n2 + 1,
+            2 * n1,
+            2 * n1 + 1,
+        ]
+    ).T
 
-    Args:
-        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization or simulation.
 
-    Returns:
-        State object with the relevant scalars and matrices used in optimization and simulation.
-    """
-    st = State()
-    cfg = cfg or {}
-
-    ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
-    edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
-    for elx in range(cfg["nelx"]):
-        for ely in range(cfg["nely"]):
-            el = ely + elx * cfg["nely"]
-            n1 = (cfg["nely"] + 1) * elx + ely
-            n2 = (cfg["nely"] + 1) * (elx + 1) + ely
-            edofMat[el, :] = np.array(
-                [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1]
-            )
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()
-
-    nfilter = int(cfg["nelx"] * cfg["nely"] * ((2 * (np.ceil(cfg["rmin"]) - 1) + 1) ** 2))
+def h_mat(nelx: int, nely: int, rmin: float) -> sparray:
+    nfilter = int(nelx * nely * ((2 * (np.ceil(rmin) - 1) + 1) ** 2))
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
     cc = 0
-    for i in range(cfg["nelx"]):
-        for j in range(cfg["nely"]):
-            row = i * cfg["nely"] + j
-            kk1 = int(np.maximum(i - (np.ceil(cfg["rmin"]) - 1), 0))
-            kk2 = int(np.minimum(i + np.ceil(cfg["rmin"]), cfg["nelx"]))
-            ll1 = int(np.maximum(j - (np.ceil(cfg["rmin"]) - 1), 0))
-            ll2 = int(np.minimum(j + np.ceil(cfg["rmin"]), cfg["nely"]))
+
+    r = np.ceil(rmin).astype(np.int64)
+    for i in range(nelx):
+        for j in range(nely):
+            row = i * nely + j
+            kk1 = np.maximum(i - (r - 1), 0)
+            kk2 = np.minimum(i + r, nelx)
+            ll1 = np.maximum(j - (r - 1), 0)
+            ll2 = np.minimum(j + r, nely)
             for k in range(kk1, kk2):
                 for l in range(ll1, ll2):
-                    col = k * cfg["nely"] + l
-                    fac = cfg["rmin"] - np.sqrt((i - k) * (i - k) + (j - l) * (j - l))
+                    col = k * nely + l
+                    fac = rmin - np.hypot(i - k, j - l)
                     iH[cc] = row
                     jH[cc] = col
                     sH[cc] = np.maximum(0.0, fac)
-                    cc = cc + 1
+                    cc += 1
     # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(cfg["nelx"] * cfg["nely"], cfg["nelx"] * cfg["nely"])).tocsc()
-    Hs = H.sum(1)
-
-    # BC's and support
-    dofs = np.arange(2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1))
-    fixed = np.union1d(dofs[0 : 2 * (cfg["nely"] + 1) : 2], np.array([2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1) - 1]))
-    free = np.setdiff1d(dofs, fixed)
-
-    # Solution and RHS vectors
-    f = np.zeros((ndof, 1))
-    u = np.zeros((ndof, 1))
-
-    # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
-    f[int(1 + (2 * cfg["forcedist"] * cfg["nelx"]) * (cfg["nely"] + 1)), 0] = -1
-
-    st.update(
-        {
-            "ndof": ndof,
-            "edofMat": edofMat,
-            "iK": iK,
-            "jK": jK,
-            "H": H,
-            "Hs": Hs,
-            "dofs": dofs,
-            "fixed": fixed,
-            "free": free,
-            "f": f,
-            "u": u,
-        }
-    )
-
-    return st
+    return coo_matrix((sH, (iH, jH)), shape=(nelx * nely, nelx * nely)).tocsc()
 
 
 def inner_opt(
