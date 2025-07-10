@@ -43,6 +43,9 @@ class FakeDesign:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, type(self)) and self.design_id == other.design_id
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 class FakePlot:
     """It's only a model."""
@@ -52,6 +55,9 @@ class FakePlot:
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, type(self)) and self.design == other.design
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 class FakeProblem(Problem[FakeDesign]):
