@@ -17,7 +17,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 
 from dataclasses import dataclass
 from dataclasses import field
-import os
+import os, sys
 import shutil
 from typing import Annotated, Any
 
@@ -213,7 +213,7 @@ class Airfoil(Problem[DesignType]):
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
-        super().__init__()
+        #super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -229,6 +229,10 @@ class Airfoil(Problem[DesignType]):
         self.current_study = f"study_{self.seed}"
         self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+
+        print(self.current_study)
+        print(self.__local_study_dir)
+        print(self.__docker_study_dir)
 
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
 
@@ -385,8 +389,8 @@ class Airfoil(Problem[DesignType]):
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
         # docker pull image if not already pulled
-        if container.RUNTIME is not None and self.container_id is not None:
-            container.pull(self.container_id)
+        #if container.RUNTIME is not None and self.container_id is not None:
+        #    container.pull(self.container_id)
         # pre-process the design and run the simulation
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
@@ -406,7 +410,6 @@ class Airfoil(Problem[DesignType]):
             self.__local_study_dir + "/airfoil_analysis.py",
             base_config,
         )
-
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
         try:
@@ -430,11 +433,17 @@ class Airfoil(Problem[DesignType]):
             raise RuntimeError(
                 f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
             ) from e
+        
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
+        field_outputs = self.simulator_output_to_design()
+
         lift = float(outputs[3])
         drag = float(outputs[4])
-        return np.array([drag, lift])
+
+        performance = np.array([drag, lift])
+
+        return performance, field_outputs
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4

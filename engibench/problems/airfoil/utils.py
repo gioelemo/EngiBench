@@ -3,6 +3,7 @@
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import sys
 
 
 def _extract_connectivities(df_slice: pd.DataFrame) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
@@ -126,6 +127,9 @@ def _order_segments(
 def _reorder_coordinates(  # noqa: PLR0913
     coords_x: npt.NDArray[np.float32],
     coords_y: npt.NDArray[np.float32],
+    vel_x: npt.NDArray[np.float32],
+    vel_y: npt.NDArray[np.float32],
+    press: npt.NDArray[np.float32],
     indices: npt.NDArray[np.int32],
     connectivities: npt.NDArray[np.int32],
     segment_ids: npt.NDArray[np.float32],
@@ -136,16 +140,22 @@ def _reorder_coordinates(  # noqa: PLR0913
     Args:
         coords_x (npt.NDArray[np.float32]): X coordinates
         coords_y (npt.NDArray[np.float32]): Y coordinates
+        vel_x (npt.NDArray[np.float32]): X-Velocties
+        vel_y (npt.NDArray[np.float32]): Y-Velocities
+        press (npt.NDArray[np.float32]): Pressures
         indices (npt.NDArray[np.int32]): Original indices
         connectivities (npt.NDArray[np.int32]): Node connections
         segment_ids (npt.NDArray[np.float32]): Segment identifiers
         new_seg_order (npt.NDArray[np.int32]): New segment order
 
     Returns:
-        tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int32]]: Reordered coordinates and indices
+        tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int32]]: Reordered coordinates, fields, and indices
     """
     coords_x_reordered = np.array([])
     coords_y_reordered = np.array([])
+    vel_x_reordered = np.array([])
+    vel_y_reordered = np.array([])
+    press_reordered = np.array([])
     indices_reordered = np.array([])
 
     for j in range(len(new_seg_order)):
@@ -153,23 +163,35 @@ def _reorder_coordinates(  # noqa: PLR0913
             segment = np.nonzero(segment_ids == -new_seg_order[j])[0]
             coords_x_segment = coords_x[connectivities[segment] - 1][:, 0][::-1]
             coords_y_segment = coords_y[connectivities[segment] - 1][:, 0][::-1]
+            vel_x_segment = vel_x[connectivities[segment] - 1][:, 0][::-1]
+            vel_y_segment = vel_y[connectivities[segment] - 1][:, 0][::-1]
+            press_segment = press[connectivities[segment] - 1][:, 0][::-1]
             indices_segment = indices[connectivities[segment] - 1][:, 0][::-1]
         else:
             segment = np.nonzero(segment_ids == new_seg_order[j])[0]
             coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
             coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
+            vel_x_segment = vel_x[connectivities[segment] - 1][:, 0]
+            vel_y_segment = vel_y[connectivities[segment] - 1][:, 0]
+            press_segment = press[connectivities[segment] - 1][:, 0]
             indices_segment = indices[connectivities[segment] - 1][:, 0]
 
         coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
         coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
+        vel_x_reordered = np.concatenate((vel_x_reordered, vel_x_segment))
+        vel_y_reordered = np.concatenate((vel_y_reordered, vel_y_segment))
+        press_reordered = np.concatenate((press_reordered, press_segment))
         indices_reordered = np.concatenate((indices_reordered, indices_segment))
 
-    return coords_x_reordered, coords_y_reordered, indices_reordered
+    return coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered
 
 
 def _align_coordinates(
     coords_x_reordered: npt.NDArray[np.float32],
     coords_y_reordered: npt.NDArray[np.float32],
+    vel_x_reordered: npt.NDArray[np.float32],
+    vel_y_reordered: npt.NDArray[np.float32],
+    press_reordered: npt.NDArray[np.float32],
     indices_reordered: npt.NDArray[np.int32],
     err: float = 1e-4,
     err_x: float = 0.90,
@@ -179,12 +201,15 @@ def _align_coordinates(
     Args:
         coords_x_reordered (npt.NDArray[np.float32]): Reordered x coordinates
         coords_y_reordered (npt.NDArray[np.float32]): Reordered y coordinates
+        vel_x_reordered (npt.NDArray[np.float32]): Reordered X-Velocties
+        vel_y_reordered (npt.NDArray[np.float32]): Reordered Y-Velocities
+        press_reordered (npt.NDArray[np.float32]): Reordered Pressures
         indices_reordered (npt.NDArray[np.int32]): Reordered indices
         err (float): Error tolerance
         err_x (float): X coordinate error factor
 
     Returns:
-        tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int32]]: Aligned coordinates and indices
+        tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int32]]: Aligned coordinates, fields,  and indices
     """
     max_x = np.amax(coords_x_reordered) * err_x
     max_x_ids = np.argwhere(np.abs(coords_x_reordered - np.amax(coords_x_reordered)) < err).reshape(-1, 1)
@@ -205,14 +230,20 @@ def _align_coordinates(
     # Now reorder the coordinates such that the mean y value is first
     coords_x_reordered = np.concatenate((coords_x_reordered[mean_y_value_id:], coords_x_reordered[:mean_y_value_id]))
     coords_y_reordered = np.concatenate((coords_y_reordered[mean_y_value_id:], coords_y_reordered[:mean_y_value_id]))
+    vel_x_reordered = np.concatenate((vel_x_reordered[mean_y_value_id:], vel_x_reordered[:mean_y_value_id]))
+    vel_y_reordered = np.concatenate((vel_y_reordered[mean_y_value_id:], vel_y_reordered[:mean_y_value_id]))
+    press_reordered = np.concatenate((press_reordered[mean_y_value_id:], press_reordered[:mean_y_value_id]))
     indices_reordered = np.concatenate((indices_reordered[mean_y_value_id:], indices_reordered[:mean_y_value_id]))
 
-    return coords_x_reordered, coords_y_reordered, indices_reordered
+    return coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered
 
 
 def _clean_coordinates(
     coords_x_reordered: npt.NDArray[np.float32],
     coords_y_reordered: npt.NDArray[np.float32],
+    vel_x_reordered: npt.NDArray[np.float32],
+    vel_y_reordered: npt.NDArray[np.float32],
+    press_reordered: npt.NDArray[np.float32],
     indices_reordered: npt.NDArray[np.int32],
     err_remove: float = 1e-6,
 ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int32]]:
@@ -221,6 +252,9 @@ def _clean_coordinates(
     Args:
         coords_x_reordered (npt.NDArray[np.float32]): Reordered x coordinates
         coords_y_reordered (npt.NDArray[np.float32]): Reordered y coordinates
+        vel_x_reordered (npt.NDArray[np.float32]): Reordered X-Velocties
+        vel_y_reordered (npt.NDArray[np.float32]): Reordered Y-Velocities
+        press_reordered (npt.NDArray[np.float32]): Reordered Pressures
         indices_reordered (npt.NDArray[np.int32]): Reordered indices
         err_remove (float): Error tolerance for removal
 
@@ -231,12 +265,18 @@ def _clean_coordinates(
     indices_reordered = np.delete(indices_reordered, removal_ids)
     coords_x_reordered = np.delete(coords_x_reordered, removal_ids)
     coords_y_reordered = np.delete(coords_y_reordered, removal_ids)
+    vel_x_reordered = np.delete(vel_x_reordered, removal_ids)
+    vel_y_reordered = np.delete(vel_y_reordered, removal_ids)
+    press_reordered = np.delete(press_reordered, removal_ids)
 
     coords_x_reordered = np.concatenate((coords_x_reordered, np.expand_dims(coords_x_reordered[0], axis=0)))
     coords_y_reordered = np.concatenate((coords_y_reordered, np.expand_dims(coords_y_reordered[0], axis=0)))
+    vel_x_reordered = np.concatenate((vel_x_reordered, np.expand_dims(vel_x_reordered[0], axis=0)))
+    vel_y_reordered = np.concatenate((vel_y_reordered, np.expand_dims(vel_y_reordered[0], axis=0)))
+    press_reordered = np.concatenate((press_reordered, np.expand_dims(press_reordered[0], axis=0)))
     indices_reordered = np.concatenate((indices_reordered, np.expand_dims(indices_reordered[0], axis=0)))
 
-    return coords_x_reordered, coords_y_reordered, indices_reordered
+    return coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered
 
 
 def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
@@ -257,6 +297,11 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
     coords_y = df_slice["CoordinateY"].to_numpy()
     indices = np.arange(len(df_slice))
 
+    # Get field values
+    vel_x = df_slice["VelocityX"].to_numpy()
+    vel_y = df_slice["VelocityY"].to_numpy()
+    press = df_slice["CoefPressure"].to_numpy()
+    
     # Identify segments
     id_breaks_start, id_breaks_end, segment_ids = _identify_segments(connectivities)
     unique_segment_ids = np.arange(len(id_breaks_start))
@@ -265,21 +310,21 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
     new_seg_order = _order_segments(coords_x, coords_y, id_breaks_start, id_breaks_end, unique_segment_ids)
 
     # Reorder coordinates
-    coords_x_reordered, coords_y_reordered, indices_reordered = _reorder_coordinates(
-        coords_x, coords_y, indices, connectivities, segment_ids, new_seg_order
+    coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered = _reorder_coordinates(
+        coords_x, coords_y, vel_x, vel_y, press, indices, connectivities, segment_ids, new_seg_order
     )
-
+ 
     # Align coordinates
-    coords_x_reordered, coords_y_reordered, indices_reordered = _align_coordinates(
-        coords_x_reordered, coords_y_reordered, indices_reordered
+    coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered = _align_coordinates(
+        coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered
     )
-
+ 
     # Clean coordinates
-    coords_x_reordered, coords_y_reordered, indices_reordered = _clean_coordinates(
-        coords_x_reordered, coords_y_reordered, indices_reordered
+    coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered = _clean_coordinates(
+        coords_x_reordered, coords_y_reordered, vel_x_reordered, vel_y_reordered, press_reordered, indices_reordered
     )
 
-    return np.array([coords_x_reordered, coords_y_reordered])
+    return np.array([coords_x_reordered, coords_y_reordered, press_reordered, vel_x_reordered, vel_y_reordered])
 
 
 def scale_coords(
