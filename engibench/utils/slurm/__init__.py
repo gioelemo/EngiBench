@@ -117,6 +117,8 @@ def sbatch_map(
     args: Iterable[dict[str, Any]],
     slurm_args: SlurmConfig | None = None,
     group_size: int = 1,
+    reduce_job: Callable[[list[R]], None] | None = None,
+    out: str | None = None,
 ) -> SubmittedJobArray:
     """Submit a job array for a parameter discovery to slurm.
 
@@ -133,13 +135,15 @@ def sbatch_map(
     standalone script.
     """
     # Dump jobs:
-    work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
+    #work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
+    work_dir = tempfile.mkdtemp(dir='/home/fvangess/scratch/EngiBench/scratch')
     os.makedirs(os.path.join(work_dir, "jobs"))
     os.makedirs(os.path.join(work_dir, "results"))
     n_jobs = 0
     with open(os.path.join(work_dir, "jobs", "f.pkl"), "wb") as stream:
         pickle.dump(MemorizeModule(f), stream)
     for job_no, arg in enumerate(args):
+        print(arg['configuration_id'])
         with open(os.path.join(work_dir, "jobs", f"{job_no}.pkl"), "wb") as stream:
             pickle.dump(MemorizeModule(arg), stream)
         n_jobs += 1
@@ -150,6 +154,16 @@ def sbatch_map(
         slurm_args=slurm_args or SlurmConfig(),
         array_len=n_jobs // group_size + (1 if n_jobs % group_size else 0),
     )
+    
+    '''
+    if reduce_job is not None:
+        with open(os.path.join(work_dir, "jobs", "reduce.pkl"), "wb") as stream:
+            pickle.dump(MemorizeModule(reduce_job), stream)
+    if reduce_job is not None or out is not None:
+        out_args = ("-o", out) if out is not None else ()
+        reduce_cmd = " ".join((sys.executable, WORKER, "reduce", *out_args, work_dir, str(n_jobs)))
+        run_sbatch(cmd=reduce_cmd, slurm_args=slurm_args or SlurmConfig(), job_dependency=job_id, wait=True)
+    '''
     return SubmittedJobArray(job_id, work_dir, n_jobs)
 
 
@@ -191,6 +205,7 @@ def run_sbatch(
         "--wrap",
         cmd,
     ]
+    print(sbatch_cmd)
     try:
         proc = subprocess.run(sbatch_cmd, shell=False, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
@@ -243,6 +258,7 @@ def module_path(obj: Any) -> str | None:
     """Return the path of the toplevel module of the module containing `obj`."""
     if not hasattr(obj, "__module__"):
         return None
+    #print(obj.__module__)
     top_level_module, _ = obj.__module__.split(".", 1)
     path = sys.modules[top_level_module].__file__
     if path is None:

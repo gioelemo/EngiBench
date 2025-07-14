@@ -1,7 +1,7 @@
 """Slurm job worker."""
 
 from argparse import ArgumentParser
-import os
+import os, sys
 import pickle
 import shutil
 
@@ -15,7 +15,7 @@ def run(work_dir: str, n_jobs: int) -> None:
     start = int(os.environ["SLURM_ARRAY_TASK_MIN"])
     stop = int(os.environ["SLURM_ARRAY_TASK_MAX"])
     current = int(os.environ["SLURM_ARRAY_TASK_ID"]) - start
-    array_size = stop - start
+    array_size = stop - start + 1
     group_size = n_jobs // array_size + (1 if n_jobs % array_size else 0)
     try:
         with open(os.path.join(work_dir, "jobs", "f.pkl"), "rb") as in_stream:
@@ -25,23 +25,29 @@ def run(work_dir: str, n_jobs: int) -> None:
 
         def f(**_kwargs) -> None:
             raise exception
-
-    for index in range(current * group_size, max((current + 1) * group_size, n_jobs)):
+    #print(start, stop, current, array_size, group_size)
+    for index in range(current * group_size, min((current + 1) * group_size, n_jobs)):
         result_path = os.path.join(work_dir, "results", f"{index}.pkl")
         try:
             with open(os.path.join(work_dir, "jobs", f"{index}.pkl"), "rb") as stream:
                 args = pickle.load(stream)
+                print(args.keys())
+                print(args['configuration_id'])
         except Exception as e:  # noqa: BLE001
             with open(result_path, "wb") as out_stream:
                 pickle.dump(JobError(e, "Unpickle job array item", {}), out_stream)
             continue
         try:
             result = f(**args)
+            #print(result)
             with open(result_path, "wb") as out_stream:
                 pickle.dump(MemorizeModule(result), out_stream)
         except Exception as e:  # noqa: BLE001
+            print(f"Error in job array item {index}: {e}")
+            #print(f"Args: {args}")
             with open(result_path, "wb") as out_stream:
                 pickle.dump(JobError(e, "Run job array item", args), out_stream)
+        #print('End of Run')
 
 
 def reduce(work_dir: str, n_jobs: int) -> None:
