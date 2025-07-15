@@ -252,27 +252,6 @@ class Singularity(ContainerRuntime):
 
         return sif_filename
 
-    def setup_unique_container_workspace(base_path, study_id):
-        """Create unique directories for each container instance."""
-        
-        # Create a container-specific workspace
-        container_workspace = os.path.join(base_path, f".container_workspaces/study_{study_id}")
-        
-        # Create subdirectories for common conflict points
-        dirs_to_create = {
-            'tmp': os.path.join(container_workspace, 'tmp'),
-            'cache': os.path.join(container_workspace, 'cache'),
-            'run': os.path.join(container_workspace, 'run'),
-            'shm': os.path.join(container_workspace, 'shm'),
-            'home_local': os.path.join(container_workspace, 'home/.local'),
-        }
-        
-        for dir_name, dir_path in dirs_to_create.items():
-            os.makedirs(dir_path, exist_ok=True)
-            
-        return container_workspace, dirs_to_create
-
-
     @classmethod
     def pull(cls, image: str) -> None:
         """Pull an image.
@@ -312,34 +291,14 @@ class Singularity(ContainerRuntime):
         # Get sif filename
         sif_image = cls.sif_filename(image)
 
-        # Fallback - try the docker base dir or bash command
-        #study_rel_path = "/" + command[2].split("/engibench/")[1].rsplit("/", 1)[0]
-        match = re.search(r'/engibench/(.*?/study_\d+)', command[2])
-        if match:
-            study_rel_path = "/" + match.group(1)
-            study_id = study_rel_path.split('_')[-1]
-        study_abs_path = mounts[0][0]+study_rel_path
-        print(study_id)
-        print(study_rel_path)
-        print(study_abs_path)
-        print(env)
-
         # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
         # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        mounts.append((mounts[0][0], "/tmp")) # noqa: S108
-
+        #mounts.append((mounts[0][0], "/tmp")) # noqa: S108
+        
+        # Reconstruct mount and env args
         mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
-        #mount_args = (["--mount", f"type=bind,src={study_abs_path},target={target}"] for src, target in mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
 
-        mount_args_list = list(mount_args)
-
-        for args in mount_args_list:
-            print(f"  {args}")
-        sys.exit('Inside container.py run method')
-
-        if "://" not in image:
-            image = "docker://" + image
         return subprocess.run(
             [
                 cls.executable,

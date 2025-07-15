@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Specify the parameters you want to sweep over for optimization
     rng = np.random.default_rng()
     params_to_sweep = {
-        "mach": rng.uniform(low=0.5, high=0.9, size=4),
+        "mach": rng.uniform(low=0.5, high=0.9, size=1),
         "reynolds": rng.uniform(low=1.0e6, high=2.0e7, size=1),
         "alpha": rng.uniform(low=0.0, high=20.0, size=1),
     }
@@ -78,23 +78,22 @@ if __name__ == "__main__":
     # Generate designs
     ds = load_dataset("IDEALLab/airfoil_v0")
     designs = ds["train"]["initial_design"]
-    for i, config in enumerate(simulate_configurations):
+    problem_configuration = {'mach': np.float16(0.05), 'reynolds': np.float16(200), 'alpha': np.float16(10.0)}
+    for i, design in enumerate(designs):
+        config = {'problem_configuration': problem_configuration, 'configuration_id': i}
         config["design"] = designs[i]["coords"]
         simulate_configs_designs.append(config)
-
-    for config in simulate_configs_designs:
-        print(config['configuration_id'])
     
     slurm_config = slurm.SlurmConfig(
         name="Airfoil_dataset_generation",
-        runtime="00:5:00",  # Give 15 minutes for each simulation job
+        runtime="00:10:00",  # Give 15 minutes for each simulation job
         log_dir="./sim_logs/",
     )
     slurm.sbatch_map(
         f=simulate_slurm,
         args=simulate_configs_designs,
         slurm_args=slurm_config,
-        group_size=1,  # Number of jobs to batch in sequence to reduce job array size
+        group_size=2,  # Number of jobs to batch in sequence to reduce job array size
         reduce_job=post_process_simulate,
         out="results.pkl",
     )

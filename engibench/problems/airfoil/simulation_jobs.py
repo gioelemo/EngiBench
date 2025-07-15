@@ -100,19 +100,22 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: d
         "simulate_time": The time taken to run this simulation job. Useful for aggregating
             the time taken for dataset generation.
     """
-    #base_directory = 'scratch/workdir/'+'study_' + str(configuration_id)
-    #print(base_directory)
-    #os.makedirs(base_directory, exist_ok=True)
+    # Instantiate problem
     problem = Airfoil()
+
+    # Set simulation ID
     sim_id = configuration_id+1
+
+    # Create unique simulation directory
     problem.reset(seed=sim_id, cleanup=False)
+
+    # Create simulation design (coordinates + angle of attack)
     my_design = {"coords": np.array(design), "angle_of_attack": problem_configuration["alpha"]}
 
     print("Starting `simulate` via SLURM...")
     start_time = time.time()
     performance, fields = problem.simulate(my_design, mpicores=1, config=problem_configuration)
     performance_fields_dict = {'drag': performance[0], 'lift': performance[1], 'x-coordinates': fields[0], 'y-coordinates': fields[1], 'pressure': fields[2], 'x-velocity': fields[3], 'y-velocity': fields[4]}
-    #print(performance_fields_dict)
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time

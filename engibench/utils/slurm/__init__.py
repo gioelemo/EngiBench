@@ -143,7 +143,6 @@ def sbatch_map(
     with open(os.path.join(work_dir, "jobs", "f.pkl"), "wb") as stream:
         pickle.dump(MemorizeModule(f), stream)
     for job_no, arg in enumerate(args):
-        print(arg['configuration_id'])
         with open(os.path.join(work_dir, "jobs", f"{job_no}.pkl"), "wb") as stream:
             pickle.dump(MemorizeModule(arg), stream)
         n_jobs += 1
@@ -205,7 +204,6 @@ def run_sbatch(
         "--wrap",
         cmd,
     ]
-    print(sbatch_cmd)
     try:
         proc = subprocess.run(sbatch_cmd, shell=False, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:

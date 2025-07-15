@@ -212,13 +212,6 @@ class Airfoil(Problem[DesignType]):
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
-        #print(self.__local_base_directory)
-        #print(self.__local_target_dir)
-        #print(self.__local_template_dir)
-        #print(self.__local_scripts_dir)
-        #print(self.__docker_base_dir)
-        #print(self.__docker_target_dir)
-
         #super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
@@ -315,7 +308,6 @@ class Airfoil(Problem[DesignType]):
                 + "/output_preprocess.log"
             )
             assert self.container_id is not None, "Container ID is not set"
-            print(bash_command)
             container.run(
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
@@ -384,43 +376,6 @@ class Airfoil(Problem[DesignType]):
 
         return reorder_coords(slice_df)
 
-    '''
-    def simulate_preprocess(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
-        """Simulates the performance of an airfoil design.
-
-        Args:
-            design (dict): The design to simulate.
-            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
-            mpicores (int): The number of MPI cores to use in the simulation.
-
-        Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
-        """
-        # docker pull image if not already pulled
-        if container.RUNTIME is not None and self.container_id is not None:
-            container.pull(self.container_id)
-        # pre-process the design and run the simulation
-
-        # Prepares the airfoil_analysis.py script with the simulation configuration
-        base_config = {
-            "alpha": design["angle_of_attack"],
-            "altitude": 10000,
-            "temperature": 300,
-            "use_altitude": False,
-            "output_dir": "'" + self.__docker_study_dir + "/output/'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
-            "task": "'analysis'",
-            **dict(self.conditions),
-            **(config or {}),
-        }
-        self.__design_to_simulator_input(design, base_config)
-        replace_template_values(
-            self.__local_study_dir + "/airfoil_analysis.py",
-            base_config,
-        )
-        return base_config
-    '''
-
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
 
@@ -456,33 +411,6 @@ class Airfoil(Problem[DesignType]):
         )
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
-
-        ###
-        ### DEBUGGING
-        ###
-        bash_command = (
-                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
-                + str(mpicores)
-                + " python "
-                + self.__docker_study_dir
-                + "/airfoil_analysis.py > "
-                + self.__docker_study_dir
-                + "/output.log"
-            )
-        print('\n\n\n\n\n\n\n\n\n\n\n\n\n')
-        print('DEBUG: Error Occurs AFter This Point')
-        print(self.__local_base_directory)
-        print(self.__docker_base_dir)
-        print(bash_command)
-        assert self.container_id is not None, "Container ID is not set"
-        container.run(
-            command=["/bin/bash", "-c", bash_command],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
-
-        '''
         try:
             bash_command = (
                 "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
@@ -493,7 +421,6 @@ class Airfoil(Problem[DesignType]):
                 + self.__docker_study_dir
                 + "/output.log"
             )
-            print(bash_command)
             assert self.container_id is not None, "Container ID is not set"
             container.run(
                 command=["/bin/bash", "-c", bash_command],
@@ -505,7 +432,7 @@ class Airfoil(Problem[DesignType]):
             raise RuntimeError(
                 f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
             ) from e
-        '''
+        
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         field_outputs = self.simulator_output_to_design()
