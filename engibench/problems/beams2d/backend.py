@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815, N816
+# ruff: noqa: N806, N815
 # Disabled variable name conventions
 
 """Beams 2D problem.
@@ -167,7 +167,8 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None 
     """
     cfg = cfg or {}
     sK = ((st.KE.flatten()[np.newaxis]).T * (st.Emin + design ** cfg["penal"] * (st.Emax - st.Emin))).flatten(order="F")
-    K = coo_matrix((sK, (st.iK, st.jK)), shape=(st.ndof, st.ndof)).tocsc()
+    K: csc_array = coo_matrix((sK, (st.iK, st.jK)), shape=(st.ndof, st.ndof)).tocsc()
+    assert K.shape is not None
     m = K.shape[0]
     keep = np.delete(np.arange(0, m), st.fixed)
     K = K[keep, :]
@@ -295,6 +296,8 @@ def inner_opt(
     l1, l2, move = (0.0, 1e9, 0.2)
     # reshape to perform vector operations
     xnew = np.zeros(cfg["nelx"] * cfg["nely"])
+    xPhys = np.zeros(cfg["nelx"] * cfg["nely"])
+    xPrint = np.zeros(cfg["nelx"] * cfg["nely"])
 
     while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > st.min_ratio:
         lmid = 0.5 * (l2 + l1)

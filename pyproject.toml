@@ -233,19 +233,7 @@ enableTypeIgnoreComments = true
 # This is required as the CI pre-commit does not download the module (i.e. numpy, pygame)
 #   Therefore, we have to ignore missing imports
 reportMissingImports = "none"
-# Some modules are missing type stubs, which is an issue when running pyright locally
-reportMissingTypeStubs = false
-# For warning and error, will raise an error when
-reportInvalidTypeVarUse = "none"
-reportOptionalSubscript = "none"
-
-reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
-# reportUntypedFunctionDecorator = "none"  # -> pytest.mark.parameterize issues
-
-# reportOptionalMemberAccess = "none" # -> commented out raises warnings
-reportPrivateImportUsage = "warning" # ->
-
-reportPrivateUsage = "warning"
+reportGeneralTypeIssues = "none"  # -> commented out raises a lot of errors
 reportUnboundVariable = "warning"
 
 [tool.mypy]

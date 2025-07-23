@@ -34,6 +34,7 @@ def _identify_segments(connectivities: npt.NDArray[np.int32]) -> tuple[list[int]
     prev_id = 0
     segment_ids = np.zeros(len(connectivities), dtype=np.float32)
     seg_id = 0
+    j = -1  # Ensure j is always defined
 
     for j in range(len(connectivities)):
         if connectivities[j][0] - 1 != prev_id:

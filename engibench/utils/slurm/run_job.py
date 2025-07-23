@@ -1,7 +1,7 @@
 """Slurm job worker."""
 
 from argparse import ArgumentParser
-import os, sys
+import os
 import pickle
 import shutil
 
@@ -10,53 +10,51 @@ from engibench.utils.slurm import JobError
 from engibench.utils.slurm import MemorizeModule
 
 
-def run(work_dir: str, n_jobs: int) -> None:
-    """Process a job or group of job of a slurm job array."""
+def map_job_group(work_dir: str, n_jobs: int) -> None:
+    """Process a job or group of job of a slurm job array.
+
+    This is the "map" step of "map - reduce".
+    """
     start = int(os.environ["SLURM_ARRAY_TASK_MIN"])
     stop = int(os.environ["SLURM_ARRAY_TASK_MAX"])
     current = int(os.environ["SLURM_ARRAY_TASK_ID"]) - start
     array_size = stop - start + 1
     group_size = n_jobs // array_size + (1 if n_jobs % array_size else 0)
     try:
-        with open(os.path.join(work_dir, "jobs", "f.pkl"), "rb") as in_stream:
-            f = pickle.load(in_stream)
+        with open(os.path.join(work_dir, "jobs", "map_callback.pkl"), "rb") as in_stream:
+            map_callback = pickle.load(in_stream)
     except Exception as e:  # noqa: BLE001
         exception = e
 
-        def f(**_kwargs) -> None:
+        def map_callback(**_kwargs) -> None:
             raise exception
-    #print(start, stop, current, array_size, group_size)
-    for index in range(current * group_size, min((current + 1) * group_size, n_jobs)):
+
+    # Run `group_size` jobs as sub jobs of current job (usecase: many small jobs):
+    for index in range(current * group_size, max((current + 1) * group_size, n_jobs)):
         result_path = os.path.join(work_dir, "results", f"{index}.pkl")
         try:
             with open(os.path.join(work_dir, "jobs", f"{index}.pkl"), "rb") as stream:
                 args = pickle.load(stream)
-                print(args.keys())
-                print(args['configuration_id'])
         except Exception as e:  # noqa: BLE001
             with open(result_path, "wb") as out_stream:
                 pickle.dump(JobError(e, "Unpickle job array item", {}), out_stream)
             continue
         try:
-            result = f(**args)
-            #print(result)
+            result = map_callback(**args)
             with open(result_path, "wb") as out_stream:
                 pickle.dump(MemorizeModule(result), out_stream)
         except Exception as e:  # noqa: BLE001
-            print(f"Error in job array item {index}: {e}")
-            #print(f"Args: {args}")
             with open(result_path, "wb") as out_stream:
                 pickle.dump(JobError(e, "Run job array item", args), out_stream)
-        #print('End of Run')
 
 
-def reduce(work_dir: str, n_jobs: int) -> None:
+def reduce_job_results(work_dir: str, n_jobs: int) -> None:
     """Collect all results or errors from job array jobs, passing to a reduce callback."""
     with open(os.path.join(work_dir, "jobs", "reduce.pkl"), "rb") as in_stream:
-        reduce_job = pickle.load(in_stream)
+        reduce_callback = pickle.load(in_stream)
 
     results = collect_jobs(work_dir, n_jobs)
-    reduced = reduce_job(results)
+    reduced = reduce_callback(results)
     with open(os.path.join(work_dir, "reduced.pkl"), "wb") as out_stream:
         pickle.dump(MemorizeModule(reduced), out_stream)
 
@@ -92,12 +90,12 @@ def cli() -> None:
         help="Sub-command help",
         metavar="<SUB-COMMAND>",
     )
-    subparser = subparsers.add_parser("run", help=run.__doc__)
-    subparser.set_defaults(subcmd=run)
+    subparser = subparsers.add_parser("run", help=map_job_group.__doc__)
+    subparser.set_defaults(subcmd=map_job_group)
     subparser.add_argument("work_dir", help="Path to the work directory")
     subparser.add_argument("n_jobs", type=int, help="Total number of jobs")
-    subparser = subparsers.add_parser("reduce", help=reduce.__doc__)
-    subparser.set_defaults(subcmd=reduce)
+    subparser = subparsers.add_parser("reduce", help=reduce_job_results.__doc__)
+    subparser.set_defaults(subcmd=reduce_job_results)
     subparser.add_argument("work_dir", help="Path to the work directory")
     subparser.add_argument("n_jobs", type=int, help="Total number of jobs")
     subparser = subparsers.add_parser("save", help=save.__doc__)

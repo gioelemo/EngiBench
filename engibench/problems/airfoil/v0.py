@@ -22,6 +22,7 @@ import shutil
 from typing import Annotated, Any
 
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -514,15 +515,16 @@ class Airfoil(Problem[DesignType]):
         # post process -- extract the shape and objective values
         optisteps_history = []
         history = History(self.__local_study_dir + "/output/opt.hst")
-        iters = list(map(int, history.getCallCounters()[:]))
+        call_counters = history.getCallCounters()
+        iters = list(map(int, call_counters)) if call_counters is not None else []
 
         for i in range(len(iters)):
             vals = history.read(int(iters[i]))
             if vals is not None and "funcs" in vals and "obj" in vals["funcs"] and not vals["fail"]:
-                objective = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)[
-                    "obj"
-                ]
-                optisteps_history.append(OptiStep(obj_values=np.array(objective), step=vals["iter"]))
+                values = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)
+                if values is not None and "obj" in values:
+                    objective = values["obj"]
+                    optisteps_history.append(OptiStep(obj_values=np.array(objective), step=vals["iter"]))
 
         history.close()
 
@@ -541,8 +543,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             Any: The rendered design.
         """
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots()
         coords = design["coords"]
         alpha = design["angle_of_attack"]
@@ -570,8 +570,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             Any: Rendered optimization step history.
         """
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots()
         steps = np.array([step.step for step in optisteps_history])
         objectives = np.array([step.obj_values[0][0] for step in optisteps_history])

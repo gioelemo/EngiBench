@@ -88,13 +88,17 @@ class SubmittedJobArray(Generic[R]):
         """
         with open(os.path.join(self.work_dir, "jobs", "reduce.pkl"), "wb") as stream:
             pickle.dump(MemorizeModule(f_reduce), stream)
+
+        # Submit reduce job:
         cmd = " ".join((sys.executable, WORKER, "reduce", self.work_dir, str(self.n_jobs)))
         run_sbatch(cmd, slurm_args=slurm_args or SlurmConfig(), job_dependency=self.job_id, wait=True)
+
+        # Try to load and return the reduced result if it is not too large:
         reduced_path = os.path.join(self.work_dir, "reduced.pkl")
         if size_limit is not None and os.path.getsize(reduced_path) > size_limit:
             raise RuntimeError(f"""Pickled data is too large to be processed by a login node.
 Please submit a separate slurm job for postprocessing.
-The pickled data is still accessable here: {reduced_path}
+The pickled data is still accessible here: {reduced_path}
 """)
         with open(reduced_path, "rb") as stream:
             result = pickle.load(stream)
@@ -117,8 +121,6 @@ def sbatch_map(
     args: Iterable[dict[str, Any]],
     slurm_args: SlurmConfig | None = None,
     group_size: int = 1,
-    reduce_job: Callable[[list[R]], None] | None = None,
-    out: str | None = None,
 ) -> SubmittedJobArray:
     """Submit a job array for a parameter discovery to slurm.
 
@@ -135,12 +137,11 @@ def sbatch_map(
     standalone script.
     """
     # Dump jobs:
-    #work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
-    work_dir = tempfile.mkdtemp(dir='/home/fvangess/scratch/EngiBench/scratch')
+    work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
     os.makedirs(os.path.join(work_dir, "jobs"))
     os.makedirs(os.path.join(work_dir, "results"))
     n_jobs = 0
-    with open(os.path.join(work_dir, "jobs", "f.pkl"), "wb") as stream:
+    with open(os.path.join(work_dir, "jobs", "map_callback.pkl"), "wb") as stream:
         pickle.dump(MemorizeModule(f), stream)
     for job_no, arg in enumerate(args):
         with open(os.path.join(work_dir, "jobs", f"{job_no}.pkl"), "wb") as stream:
@@ -153,16 +154,6 @@ def sbatch_map(
         slurm_args=slurm_args or SlurmConfig(),
         array_len=n_jobs // group_size + (1 if n_jobs % group_size else 0),
     )
-    
-    '''
-    if reduce_job is not None:
-        with open(os.path.join(work_dir, "jobs", "reduce.pkl"), "wb") as stream:
-            pickle.dump(MemorizeModule(reduce_job), stream)
-    if reduce_job is not None or out is not None:
-        out_args = ("-o", out) if out is not None else ()
-        reduce_cmd = " ".join((sys.executable, WORKER, "reduce", *out_args, work_dir, str(n_jobs)))
-        run_sbatch(cmd=reduce_cmd, slurm_args=slurm_args or SlurmConfig(), job_dependency=job_id, wait=True)
-    '''
     return SubmittedJobArray(job_id, work_dir, n_jobs)
 
 
@@ -256,7 +247,6 @@ def module_path(obj: Any) -> str | None:
     """Return the path of the toplevel module of the module containing `obj`."""
     if not hasattr(obj, "__module__"):
         return None
-    #print(obj.__module__)
     top_level_module, _ = obj.__module__.split(".", 1)
     path = sys.modules[top_level_module].__file__
     if path is None:

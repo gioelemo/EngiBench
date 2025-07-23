@@ -93,7 +93,7 @@ html_context = {
     "version_info": {
         "current": release,
         "versions": {
-            "main": "/main/",
+            "main": "/",
         }
     }
 }

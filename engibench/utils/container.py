@@ -241,7 +241,7 @@ class Singularity(ContainerRuntime):
             docker_uri = image
             # Extract just the image part if it's already a docker URI
             if docker_uri.startswith("docker://"):
-                image = docker_uri[len("docker://"):]
+                image = docker_uri[len("docker://") :]
 
         # Parse the image name to match Singularity's naming convention
         # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
@@ -288,15 +288,22 @@ class Singularity(ContainerRuntime):
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
         """
-        # Get sif filename
-        sif_image = cls.sif_filename(image)
+        # Create a mutable working copy to add required system mounts
+        working_mounts = list(mounts)
 
         # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
         # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        #mounts.append((mounts[0][0], "/tmp")) # noqa: S108
-        
-        # Reconstruct mount and env args
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
+        if working_mounts:  # Only add /tmp mount if we have existing mounts
+            # Use the first mount's host path for /tmp (existing logic) 
+            #tmp_host_path = working_mounts[0][0]
+            #working_mounts.append((tmp_host_path, "/tmp"))  # noqa: S108
+            pass
+        else:
+            # Handle the empty mounts case - perhaps use a default temp directory
+            # or skip the /tmp mount altogether
+            pass
+
+        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in working_mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
 
         return subprocess.run(

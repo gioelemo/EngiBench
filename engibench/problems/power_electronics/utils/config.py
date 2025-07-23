@@ -1,5 +1,5 @@
 """Set up the configuration for the Power Electronics problem."""
-# ruff: noqa: N806, N815 # Upper case
+# ruff: noqa: N815 # Upper case
 
 from dataclasses import dataclass
 from dataclasses import field
