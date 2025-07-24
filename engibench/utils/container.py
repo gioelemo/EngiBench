@@ -217,11 +217,27 @@ class Podman(Docker):
             return False
 
 
+DOCKER_PREFIX = "docker://"
+
+
 class Singularity(ContainerRuntime):
-    """Singularity / Apptainer."""
+    """Singularity."""
 
     name = "singularity"
     executable = "singularity"
+
+    @classmethod
+    def sif_filename(cls, image: str) -> str:
+        """Construct the sif filename from an image specifier."""
+        # Extract just the image part if it's a docker URI
+        image = image.removeprefix(DOCKER_PREFIX)
+
+        # Parse the image name to match Singularity's naming convention
+        # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
+        image_name = image.rsplit("/", 1)[-1] if "/" in image else image
+
+        # Replace ":" with "_" in the image name
+        return image_name.replace(":", "_") + ".sif"
 
     @classmethod
     def pull(cls, image: str) -> None:
@@ -230,27 +246,15 @@ class Singularity(ContainerRuntime):
         Args:
             image: Container image to pull.
         """
-        # Convert to docker URI if needed
-        if "://" not in image:
-            docker_uri = "docker://" + image
-        else:
-            docker_uri = image
-            # Extract just the image part if it's already a docker URI
-            if docker_uri.startswith("docker://"):
-                image = docker_uri[len("docker://") :]
-
-        # Parse the image name to match Singularity's naming convention
-        # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
-        image_name = image.split("/")[-1] if "/" in image else image
-
-        # Replace ":" with "_" in the image name
-        sif_filename = image_name.replace(":", "_") + ".sif"
+        # Get sif filename
+        sif_filename = cls.sif_filename(image)
 
         # Check if the image already exists
         if os.path.exists(sif_filename):
             print(f"Image file already exists: {sif_filename} - skipping pull")
             return
-
+        # Convert to docker URI if needed
+        docker_uri = DOCKER_PREFIX + image if "://" not in image else image
         # Image doesn't exist, proceed with pull
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
@@ -272,24 +276,16 @@ class Singularity(ContainerRuntime):
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
         """
-        # Create a mutable working copy to add required system mounts
-        working_mounts = list(mounts)
+        # Get sif filename
+        sif_image = cls.sif_filename(image)
 
         # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
         # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        if working_mounts:  # Only add /tmp mount if we have existing mounts
-            # Use the first mount's host path for /tmp (existing logic)
-            tmp_host_path = working_mounts[0][0]
-            working_mounts.append((tmp_host_path, "/tmp"))  # noqa: S108
-        else:
-            # Handle the empty mounts case - perhaps use a default temp directory
-            # or skip the /tmp mount altogether
-            pass
 
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in working_mounts)
+        # Reconstruct mount and env args
+        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
-        if "://" not in image:
-            image = "docker://" + image
+
         return subprocess.run(
             [
                 cls.executable,
@@ -297,11 +293,18 @@ class Singularity(ContainerRuntime):
                 "--compat",
                 *(arg for args in mount_args for arg in args),
                 *(arg for args in env_args for arg in args),
-                image,
+                sif_image,
                 *command,
             ],
             check=False,
         )
+
+
+class Apptainer(Singularity):
+    """Apptainer."""
+
+    name = "apptainer"
+    executable = "apptainer"
 
 
 RUNTIMES = [
