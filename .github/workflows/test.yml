@@ -46,12 +46,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install ngspice
+      shell: cmd
       run: |
         # Download and extract ngspice to expected location
         curl -L -o ngspice.zip "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip"
-        Expand-Archive -Path "ngspice.zip" -DestinationPath "C:\Program Files" -Force
-        Remove-Item "ngspice.zip"
-        echo "C:\Program Files\Spice64\bin" >> $env:GITHUB_PATH
+        powershell -Command "Expand-Archive -Path 'ngspice.zip' -DestinationPath 'C:\Program Files' -Force"
+        del ngspice.zip
+        echo C:\Program Files\Spice64\bin>> %GITHUB_PATH%
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
