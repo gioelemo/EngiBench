@@ -45,20 +45,29 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install ngspice
-      shell: pwsh
+      shell: powershell
       run: |
-        # Download and extract ngspice to expected location
+        # Download ngspice
         curl -L -o ngspice.zip "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip"
-        Expand-Archive -Path ngspice.zip -DestinationPath "C:\Program Files" -Force
+
+        # Use .NET method to extract (avoid Expand-Archive issues)
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory("ngspice.zip", "C:\Program Files")
+
         Remove-Item ngspice.zip
-        echo "C:\Program Files\Spice64\bin" >> $env:GITHUB_PATH
+
+        # Add to PATH
+        echo "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install uv
         uv pip install --system pytest
         uv pip install --system -e .[all]
+
     - name: Full Python tests
       run: |
         pytest -s
