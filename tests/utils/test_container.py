@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from engibench.utils import container
@@ -6,6 +8,7 @@ available_runtimes = [rt for rt in container.RUNTIMES if rt.is_available()]
 
 
 @pytest.mark.parametrize("runtime", available_runtimes)
+@pytest.mark.skipif(sys.platform == "win32", reason="Skip Singularity tests on Windows")
 def test_run_singularity_sets_correct_environment(runtime: type[container.ContainerRuntime]) -> None:
     """Test if singularity can run a container with an environment variable."""
 
@@ -13,6 +16,7 @@ def test_run_singularity_sets_correct_environment(runtime: type[container.Contai
 
 
 @pytest.mark.parametrize("runtime", available_runtimes)
+@pytest.mark.skipif(sys.platform == "win32", reason="Skip Singularity tests on Windows")
 def test_run_singularity_mounts_files(runtime: type[container.ContainerRuntime]) -> None:
     """Test if singularity can run a container with a mount."""
 

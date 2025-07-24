@@ -20,12 +20,73 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install ngspice
+      run: |
+        sudo apt-get update
+        sudo apt-get install ngspice
     - name: Install dependencies
       run: |
         pipx install uv
         uv pip install --system pytest
-        sudo apt-get update
-        sudo apt-get install ngspice
+        uv pip install --system -e .[all]
+    - name: Full Python tests
+      run: |
+        pytest -s
+
+  windows-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ['3.12']
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install ngspice
+      shell: powershell
+      run: |
+        curl.exe -L -o ngspice.7z "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z"
+
+        7z x ngspice.7z -o"C:\Program Files"
+
+        Remove-Item ngspice.7z
+        "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install uv
+        uv pip install --system pytest
+        uv pip install --system -e .[all]
+
+    - name: Full Python tests
+      run: |
+        pytest -s
+
+  macos-test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ['3.12']
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install ngspice
+      run: |
+        brew install ngspice # for power electronics problems
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install uv
+        uv pip install --system pytest
         uv pip install --system -e .[all]
     - name: Full Python tests
       run: |
