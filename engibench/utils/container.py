@@ -218,6 +218,9 @@ class Podman(Docker):
             return False
 
 
+DOCKER_PREFIX = "docker://"
+
+
 class Singularity(ContainerRuntime):
     """Singularity / Apptainer."""
 
@@ -238,6 +241,19 @@ class Singularity(ContainerRuntime):
         os.environ["APPTAINER_TMPDIR"] = os.environ.get("TMPDIR", tempfile.gettempdir())
 
     @classmethod
+    def sif_filename(cls, image: str) -> str:
+        """Construct the sif filename from an image specifier."""
+        # Extract just the image part if it's a docker URI
+        image = image.removeprefix(DOCKER_PREFIX)
+
+        # Parse the image name to match Singularity's naming convention
+        # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
+        image_name = image.rsplit("/", 1)[-1] if "/" in image else image
+
+        # Replace ":" with "_" in the image name
+        return image_name.replace(":", "_") + ".sif"
+
+    @classmethod
     def pull(cls, image: str) -> None:
         """Pull an image.
 
@@ -246,28 +262,15 @@ class Singularity(ContainerRuntime):
         """
         # Set Apptainer environment variables
         cls._set_apptainer_env()
-
-        # Convert to docker URI if needed
-        if "://" not in image:
-            docker_uri = "docker://" + image
-        else:
-            docker_uri = image
-            # Extract just the image part if it's already a docker URI
-            if docker_uri.startswith("docker://"):
-                image = docker_uri[len("docker://") :]
-
-        # Parse the image name to match Singularity's naming convention
-        # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
-        image_name = image.split("/")[-1] if "/" in image else image
-
-        # Replace ":" with "_" in the image name
-        sif_filename = image_name.replace(":", "_") + ".sif"
+        # Get sif filename
+        sif_filename = cls.sif_filename(image)
 
         # Check if the image already exists
         if os.path.exists(sif_filename):
             print(f"Image file already exists: {sif_filename} - skipping pull")
             return
-
+        # Convert to docker URI if needed
+        docker_uri = DOCKER_PREFIX + image if "://" not in image else image
         # Image doesn't exist, proceed with pull
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
@@ -292,11 +295,13 @@ class Singularity(ContainerRuntime):
         # Set Apptainer environment variables
         cls._set_apptainer_env()
 
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
+        # Get sif filename
+        sif_image = cls.sif_filename(image)
 
+        # Reconstruct mount and env args
+        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
-        if "://" not in image:
-            image = "docker://" + image
+
         return subprocess.run(
             [
                 cls.executable,
@@ -304,7 +309,7 @@ class Singularity(ContainerRuntime):
                 "--compat",
                 *(arg for args in mount_args for arg in args),
                 *(arg for args in env_args for arg in args),
-                image,
+                sif_image,
                 *command,
             ],
             check=False,
