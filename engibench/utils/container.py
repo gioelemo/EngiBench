@@ -221,11 +221,11 @@ class Podman(Docker):
 DOCKER_PREFIX = "docker://"
 
 
-class Singularity(ContainerRuntime):
-    """Singularity / Apptainer."""
+class Apptainer(ContainerRuntime):
+    """Apptainer."""
 
-    name = "singularity"
-    executable = "singularity"
+    name = "apptainer"
+    executable = "apptainer"
 
     @classmethod
     def _set_apptainer_env(cls) -> None:
