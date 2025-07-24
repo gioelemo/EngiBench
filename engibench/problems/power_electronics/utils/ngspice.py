@@ -35,6 +35,7 @@ class NgSpice:
             # Look for ngspice in Spice64 folder and common install locations
             possible_paths = [
                 self.ngspice_windows_path,
+                "ngspice.exe",
                 os.path.normpath(os.path.join("C:/Program Files/Spice64/bin/ngspice.exe")),
                 os.path.normpath(os.path.join("C:/Program Files (x86)/ngspice/bin/ngspice.exe")),
             ]
