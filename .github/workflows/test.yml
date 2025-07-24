@@ -20,12 +20,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install ngspice
+      run: |
+        sudo apt-get update
+        sudo apt-get install ngspice
     - name: Install dependencies
       run: |
         pipx install uv
         uv pip install --system pytest
-        sudo apt-get update
-        sudo apt-get install ngspice
         uv pip install --system -e .[all]
     - name: Full Python tests
       run: |
@@ -43,6 +45,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install ngspice
+      run: |
+        # Download and extract ngspice to expected location
+        Invoke-WebRequest -Uri "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip" -OutFile "ngspice.zip"
+        Expand-Archive -Path "ngspice.zip" -DestinationPath "C:\Program Files" -Force
+        Remove-Item "ngspice.zip"
+        echo "C:\Program Files\Spice64\bin" >> $env:GITHUB_PATH
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -65,6 +74,9 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install ngspice
+      run: |
+        brew install ngspice # for power electronics problems
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
