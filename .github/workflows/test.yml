@@ -50,16 +50,15 @@ jobs:
       shell: powershell
       run: |
         # Download ngspice using Invoke-WebRequest
-        Invoke-WebRequest -Uri "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip/download" -OutFile "ngspice.zip"
+        Invoke-WebRequest `
+        -Uri "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z" `
+        -OutFile "ngspice.7z"
 
-        # Extract ZIP using .NET API
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        [System.IO.Compression.ZipFile]::ExtractToDirectory("ngspice.zip", "C:\Program Files")
+        7z x ngspice.7z -oinst
 
-        Remove-Item ngspice.zip
+        Remove-Item ngspice.7z
 
-        # Add ngspice to PATH
-        "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        "$PWD\inst\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Install dependencies
       run: |
