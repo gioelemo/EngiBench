@@ -452,6 +452,7 @@ document.write(`
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
 
 
 <div class="viewcode-block" id="pull">
@@ -690,13 +691,40 @@ document.write(`
 
 
 
-<div class="viewcode-block" id="Singularity">
-<a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.Singularity">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">Singularity</span><span class="p">(</span><span class="n">ContainerRuntime</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Singularity / Apptainer.&quot;&quot;&quot;</span>
+<span class="n">DOCKER_PREFIX</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;singularity&quot;</span>
-    <span class="n">executable</span> <span class="o">=</span> <span class="s2">&quot;singularity&quot;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Apptainer</span><span class="p">(</span><span class="n">ContainerRuntime</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apptainer.&quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;apptainer&quot;</span>
+    <span class="n">executable</span> <span class="o">=</span> <span class="s2">&quot;apptainer&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_apptainer_env</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set Apptainer environment variables.&quot;&quot;&quot;</span>
+        <span class="c1"># See https://scicomp.ethz.ch/wiki/Apptainer#Settings</span>
+        <span class="c1"># Set cache directory to SCRATCH if available, otherwise use default</span>
+        <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SCRATCH&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">scratch_dir</span><span class="p">:</span>
+            <span class="c1"># stores apptainer images in your $SCRATCH directory</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;APPTAINER_CACHEDIR&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scratch_dir</span><span class="si">}</span><span class="s2">/.apptainer&quot;</span>
+
+        <span class="c1"># uses the local temporary directory to store temporary data when building images</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;APPTAINER_TMPDIR&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;TMPDIR&quot;</span><span class="p">,</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sif_filename</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct the sif filename from an image specifier.&quot;&quot;&quot;</span>
+        <span class="c1"># Extract just the image part if it&#39;s a docker URI</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="n">DOCKER_PREFIX</span><span class="p">)</span>
+
+        <span class="c1"># Parse the image name to match Singularity&#39;s naming convention</span>
+        <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
+        <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
+
+        <span class="c1"># Replace &quot;:&quot; with &quot;_&quot; in the image name</span>
+        <span class="k">return</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.sif&quot;</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">pull</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -705,27 +733,17 @@ document.write(`
 <span class="sd">        Args:</span>
 <span class="sd">            image: Container image to pull.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Convert to docker URI if needed</span>
-        <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
-            <span class="n">docker_uri</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span> <span class="o">+</span> <span class="n">image</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">image</span>
-            <span class="c1"># Extract just the image part if it&#39;s already a docker URI</span>
-            <span class="k">if</span> <span class="n">docker_uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">):</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">docker_uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">)</span> <span class="p">:]</span>
-
-        <span class="c1"># Parse the image name to match Singularity&#39;s naming convention</span>
-        <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
-        <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
-
-        <span class="c1"># Replace &quot;:&quot; with &quot;_&quot; in the image name</span>
-        <span class="n">sif_filename</span> <span class="o">=</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.sif&quot;</span>
+        <span class="c1"># Set Apptainer environment variables</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_set_apptainer_env</span><span class="p">()</span>
+        <span class="c1"># Get sif filename</span>
+        <span class="n">sif_filename</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">sif_filename</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
         <span class="c1"># Check if the image already exists</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sif_filename</span><span class="p">):</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image file already exists: </span><span class="si">{</span><span class="n">sif_filename</span><span class="si">}</span><span class="s2"> - skipping pull&quot;</span><span class="p">)</span>
             <span class="k">return</span>
-
+        <span class="c1"># Convert to docker URI if needed</span>
+        <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">DOCKER_PREFIX</span> <span class="o">+</span> <span class="n">image</span> <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
         <span class="c1"># Image doesn&#39;t exist, proceed with pull</span>
         <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">docker_uri</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -747,24 +765,16 @@ document.write(`
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Create a mutable working copy to add required system mounts</span>
-        <span class="n">working_mounts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mounts</span><span class="p">)</span>
+        <span class="c1"># Set Apptainer environment variables</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_set_apptainer_env</span><span class="p">()</span>
 
-        <span class="c1"># HPC/Singularity containers require explicit /tmp mounting to prevent memory issues</span>
-        <span class="c1"># and ensure application compatibility. This is container configuration, not insecure temp file creation.</span>
-        <span class="k">if</span> <span class="n">working_mounts</span><span class="p">:</span>  <span class="c1"># Only add /tmp mount if we have existing mounts</span>
-            <span class="c1"># Use the first mount&#39;s host path for /tmp (existing logic)</span>
-            <span class="n">tmp_host_path</span> <span class="o">=</span> <span class="n">working_mounts</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">working_mounts</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tmp_host_path</span><span class="p">,</span> <span class="s2">&quot;/tmp&quot;</span><span class="p">))</span>  <span class="c1"># noqa: S108</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Handle the empty mounts case - perhaps use a default temp directory</span>
-            <span class="c1"># or skip the /tmp mount altogether</span>
-            <span class="k">pass</span>
+        <span class="c1"># Get sif filename</span>
+        <span class="n">sif_image</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">sif_filename</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">working_mounts</span><span class="p">)</span>
+        <span class="c1"># Reconstruct mount and env args</span>
+        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span>
         <span class="n">env_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-        <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span> <span class="o">+</span> <span class="n">image</span>
+
         <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
@@ -772,12 +782,11 @@ document.write(`
                 <span class="s2">&quot;--compat&quot;</span><span class="p">,</span>
                 <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">mount_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
                 <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">env_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
-                <span class="n">image</span><span class="p">,</span>
+                <span class="n">sif_image</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">command</span><span class="p">,</span>
             <span class="p">],</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="p">)</span></div>
-
+        <span class="p">)</span>
 
 
 <span class="n">RUNTIMES</span> <span class="o">=</span> <span class="p">[</span>
