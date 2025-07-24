@@ -50,10 +50,11 @@ jobs:
       shell: powershell
       run: |
         curl.exe -L -o ngspice.7z "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z"
-        7z x ngspice.7z -oinst
-        Remove-Item ngspice.7z
 
-        "$PWD\inst\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        7z x ngspice.7z -o"C:\Program Files"
+
+        Remove-Item ngspice.7z
+        "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Install dependencies
       run: |
