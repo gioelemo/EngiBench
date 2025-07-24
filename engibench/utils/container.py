@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 import os
 import subprocess
+import tempfile
 
 
 def pull(image: str) -> None:
@@ -224,12 +225,28 @@ class Singularity(ContainerRuntime):
     executable = "singularity"
 
     @classmethod
+    def _set_apptainer_env(cls) -> None:
+        """Set Apptainer environment variables."""
+        # See https://scicomp.ethz.ch/wiki/Apptainer#Settings
+        # Set cache directory to SCRATCH if available, otherwise use default
+        scratch_dir = os.environ.get("SCRATCH")
+        if scratch_dir:
+            # stores apptainer images in your $SCRATCH directory
+            os.environ["APPTAINER_CACHEDIR"] = f"{scratch_dir}/.apptainer"
+
+        # uses the local temporary directory to store temporary data when building images
+        os.environ["APPTAINER_TMPDIR"] = os.environ.get("TMPDIR", tempfile.gettempdir())
+
+    @classmethod
     def pull(cls, image: str) -> None:
         """Pull an image.
 
         Args:
             image: Container image to pull.
         """
+        # Set Apptainer environment variables
+        cls._set_apptainer_env()
+
         # Convert to docker URI if needed
         if "://" not in image:
             docker_uri = "docker://" + image
@@ -272,21 +289,11 @@ class Singularity(ContainerRuntime):
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
         """
-        # Create a mutable working copy to add required system mounts
-        working_mounts = list(mounts)
+        # Set Apptainer environment variables
+        cls._set_apptainer_env()
 
-        # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
-        # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        if working_mounts:  # Only add /tmp mount if we have existing mounts
-            # Use the first mount's host path for /tmp (existing logic)
-            tmp_host_path = working_mounts[0][0]
-            working_mounts.append((tmp_host_path, "/tmp"))  # noqa: S108
-        else:
-            # Handle the empty mounts case - perhaps use a default temp directory
-            # or skip the /tmp mount altogether
-            pass
+        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
 
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in working_mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
         if "://" not in image:
             image = "docker://" + image
