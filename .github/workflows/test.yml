@@ -49,17 +49,17 @@ jobs:
     - name: Install ngspice
       shell: powershell
       run: |
-        # Download ngspice
-        curl -L -o ngspice.zip "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip"
+        # Download ngspice using Invoke-WebRequest
+        Invoke-WebRequest -Uri "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip/download" -OutFile "ngspice.zip"
 
-        # Use .NET method to extract (avoid Expand-Archive issues)
+        # Extract ZIP using .NET API
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::ExtractToDirectory("ngspice.zip", "C:\Program Files")
 
         Remove-Item ngspice.zip
 
-        # Add to PATH
-        echo "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        # Add ngspice to PATH
+        "C:\Program Files\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Install dependencies
       run: |
