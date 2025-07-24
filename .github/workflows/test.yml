@@ -48,9 +48,9 @@ jobs:
     - name: Install ngspice
       run: |
         # Download and extract ngspice to expected location
-        Invoke-WebRequest -Uri "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip" -OutFile "ngspice.zip"
-        Expand-Archive -Path "ngspice.zip" -DestinationPath "C:\Program Files" -Force
-        Remove-Item "ngspice.zip"
+        wget -O ngspice.zip "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/ngspice-44.2-win64.zip"
+        tar -xf ngspice.zip -C "C:\Program Files"
+        rm ngspice.zip
         echo "C:\Program Files\Spice64\bin" >> $env:GITHUB_PATH
     - name: Install dependencies
       run: |
