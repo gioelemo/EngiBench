@@ -49,13 +49,8 @@ jobs:
     - name: Install ngspice
       shell: powershell
       run: |
-        # Download ngspice using Invoke-WebRequest
-        Invoke-WebRequest `
-        -Uri "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z" `
-        -OutFile "ngspice.7z"
-
+        curl.exe -L -o ngspice.7z "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z"
         7z x ngspice.7z -oinst
-
         Remove-Item ngspice.7z
 
         "$PWD\inst\Spice64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
