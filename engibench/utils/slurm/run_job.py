@@ -22,7 +22,7 @@ def map_job_group(work_dir: str, n_jobs: int) -> None:
     start = int(os.environ["SLURM_ARRAY_TASK_MIN"])
     stop = int(os.environ["SLURM_ARRAY_TASK_MAX"])
     current = int(os.environ["SLURM_ARRAY_TASK_ID"]) - start
-    array_size = stop - start
+    array_size = stop - start + 1
     group_size = n_jobs // array_size + (1 if n_jobs % array_size else 0)
     try:
         with open(os.path.join(work_dir, "jobs", "map_callback.pkl"), "rb") as in_stream:
@@ -34,7 +34,7 @@ def map_job_group(work_dir: str, n_jobs: int) -> None:
             raise exception
 
     # Run `group_size` jobs as sub jobs of current job (usecase: many small jobs):
-    for index in range(current * group_size, max((current + 1) * group_size, n_jobs)):
+    for index in range(current * group_size, min((current + 1) * group_size, n_jobs)):
         result_path = os.path.join(work_dir, "results", f"{index}.pkl")
         try:
             with open(os.path.join(work_dir, "jobs", f"{index}.pkl"), "rb") as stream:
