@@ -16,12 +16,12 @@
 
 # -- Project information -----------------------------------------------------
 import os
-import sys
 from pathlib import Path
+import sys
 
 import engibench
 
-sys.path.append(str(Path('_ext').resolve()))
+sys.path.append(str(Path("_ext").resolve()))
 
 project = "EngiBench"
 author = "ETH Zurich's IDEAL Lab"
@@ -42,7 +42,7 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to the source code
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
-    "sphinx.ext.mathjax", # Math support
+    "sphinx.ext.mathjax",  # Math support
     "problem_doc",
 ]
 
@@ -94,14 +94,15 @@ html_context = {
         "current": release,
         "versions": {
             "main": "/",
-        }
+        },
     }
 }
 
 # Add any tags to the versions dictionary
 import subprocess
+
 try:
-    tags = subprocess.check_output(['git', 'tag', '-l', 'v*.*.*']).decode().strip().split('\n')
+    tags = subprocess.check_output(["git", "tag", "-l", "v*.*.*"]).decode().strip().split("\n")
     for tag in tags:
         if tag:
             html_context["version_info"]["versions"][tag] = f"/{tag}/"
