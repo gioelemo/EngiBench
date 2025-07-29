@@ -102,6 +102,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
         ] = 101
         """Resolution of the design space for the initialization"""
 
+    config: Config
+
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
@@ -115,11 +117,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
         """
         super().__init__()
         self.config = self.Config(**kwargs)
-        self.volume = self.config.volume
-        self.length = self.config.length
-        self.resolution = self.config.resolution
-        self.conditions = self.Conditions(self.volume, self.length)
-        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
+        resolution = self.config.resolution
+        self.conditions = self.Conditions(self.config.volume, self.config.length)
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(resolution, resolution), dtype=np.float64)
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
@@ -132,9 +132,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
             float: The thermal compliance of the design.
         """
         config = config or {}
-        volume = config.get("volume", self.volume)
-        length = config.get("length", self.length)
-        resolution = config.get("resolution", self.resolution)
+        volume = config.get("volume", self.config.volume)
+        length = config.get("length", self.config.length)
+        resolution = config.get("resolution", self.config.resolution)
         if design is None:
             design = self.initialize_design(volume, resolution)
 
@@ -170,9 +170,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
         config = config or {}
-        volume = config.get("volume", self.volume)
-        length = config.get("length", self.length)
-        resolution = config.get("resolution", self.resolution)
+        volume = config.get("volume", self.config.volume)
+        length = config.get("length", self.config.length)
+        resolution = config.get("resolution", self.config.resolution)
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
 
@@ -218,8 +218,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             HeatConduction2D: The initialized design.
         """
-        volume = volume if volume is not None else self.volume
-        resolution = resolution if resolution is not None else self.resolution
+        volume = volume if volume is not None else self.config.volume
+        resolution = resolution if resolution is not None else self.config.resolution
 
         self.__copy_templates()
         with open("templates/Des_var.txt", "w") as f:
