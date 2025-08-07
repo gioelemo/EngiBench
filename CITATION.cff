@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 title: "EngiBench: A Framework for Data-Driven Engineering Design Research"
+type: conference-paper
 authors:
   - family-names: Felten
     given-names: Florian
