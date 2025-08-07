@@ -7,7 +7,7 @@ This code has been adapted from the Python implementation by Niels Aage and Vill
 """
 
 import dataclasses
-from typing import Any, overload
+from typing import Any
 
 import cvxopt
 import cvxopt.cholmod
@@ -15,6 +15,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.sparse import coo_matrix
 from scipy.sparse import csc_array
+from scipy.sparse import sparray
 
 
 @dataclasses.dataclass
@@ -71,16 +72,6 @@ class State:
         """
         return {key: getattr(self, key) for key in keys if hasattr(self, key)}
 
-    def update(self, updates: dict[str, Any]) -> None:
-        """Update multiple state values efficiently.
-
-        Args:
-            updates (Dict[str, Any]): Dictionary of key-value pairs to update.
-        """
-        for key, value in updates.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-
     def to_dict(self) -> dict[str, Any]:
         """Convert the dataclass to a dictionary representation.
 
@@ -88,6 +79,47 @@ class State:
             Dict[str, Any]: Dictionary containing all state values.
         """
         return dataclasses.asdict(self)
+
+    @classmethod
+    def new(cls, nelx: int, nely: int, rmin: float, forcedist: float) -> "State":
+        r"""Set up the scalars and matrices for optimization or simulation.
+
+        Args:
+            nelx: Number of elements in x direction.
+            nely: Number of elements in y direction.
+            rmin: ...
+            forcedist: ...
+
+        Returns:
+            State object with the relevant scalars and matrices used in optimization and simulation.
+        """
+        edofMat = edof_mat(nelx, nely)
+
+        H = h_mat(nelx, nely, rmin)
+
+        # BC's and support
+        ndof = 2 * (nelx + 1) * (nely + 1)
+        dofs = np.arange(ndof)
+        fixed = np.union1d(dofs[0 : 2 * (nely + 1) : 2], np.array([2 * (nelx + 1) * (nely + 1) - 1]))
+
+        # Solution and RHS vectors
+        f = np.zeros((ndof, 1))
+        # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
+        f[int(1 + (2 * forcedist * nelx) * (nely + 1)), 0] = -1
+
+        return cls(
+            ndof=ndof,
+            edofMat=edofMat,
+            iK=np.kron(edofMat, np.ones((8, 1))).flatten(),
+            jK=np.kron(edofMat, np.ones((1, 8))).flatten(),
+            H=H,
+            Hs=H.sum(1),
+            dofs=dofs,
+            fixed=fixed,
+            free=np.setdiff1d(dofs, fixed),
+            f=f,
+            u=np.zeros((ndof, 1)),
+        )
 
 
 def image_to_design(im: npt.NDArray) -> npt.NDArray:
@@ -189,84 +221,50 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None 
     return np.array(ce)
 
 
-def setup(cfg: dict[str, Any] | None = None) -> State:
-    r"""Set up the scalars and matrices for optimization or simulation.
+def edof_mat(nelx: int, nely: int) -> npt.NDArray[np.float64]:
+    """Assemble the element degrees of freedom mapping matrix used in :class:`State`."""
+    n1 = ((nely + 1) * np.arange(nelx)[:, None] + np.arange(nely)).ravel()
+    n2 = n1 + nely + 1
+    return np.array(
+        [
+            2 * n1 + 2,
+            2 * n1 + 3,
+            2 * n2 + 2,
+            2 * n2 + 3,
+            2 * n2,
+            2 * n2 + 1,
+            2 * n1,
+            2 * n1 + 1,
+        ]
+    ).T
 
-    Args:
-        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization or simulation.
 
-    Returns:
-        State object with the relevant scalars and matrices used in optimization and simulation.
-    """
-    st = State()
-    cfg = cfg or {}
-
-    ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
-    edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
-    for elx in range(cfg["nelx"]):
-        for ely in range(cfg["nely"]):
-            el = ely + elx * cfg["nely"]
-            n1 = (cfg["nely"] + 1) * elx + ely
-            n2 = (cfg["nely"] + 1) * (elx + 1) + ely
-            edofMat[el, :] = np.array(
-                [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1]
-            )
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()
-
-    nfilter = int(cfg["nelx"] * cfg["nely"] * ((2 * (np.ceil(cfg["rmin"]) - 1) + 1) ** 2))
+def h_mat(nelx: int, nely: int, rmin: float) -> sparray:
+    """Assemble the filter matrix used in :class:`State`."""
+    nfilter = int(nelx * nely * ((2 * (np.ceil(rmin) - 1) + 1) ** 2))
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
     cc = 0
-    for i in range(cfg["nelx"]):
-        for j in range(cfg["nely"]):
-            row = i * cfg["nely"] + j
-            kk1 = int(np.maximum(i - (np.ceil(cfg["rmin"]) - 1), 0))
-            kk2 = int(np.minimum(i + np.ceil(cfg["rmin"]), cfg["nelx"]))
-            ll1 = int(np.maximum(j - (np.ceil(cfg["rmin"]) - 1), 0))
-            ll2 = int(np.minimum(j + np.ceil(cfg["rmin"]), cfg["nely"]))
+
+    r = np.ceil(rmin).astype(np.int64)
+    for i in range(nelx):
+        for j in range(nely):
+            row = i * nely + j
+            kk1 = np.maximum(i - (r - 1), 0)
+            kk2 = np.minimum(i + r, nelx)
+            ll1 = np.maximum(j - (r - 1), 0)
+            ll2 = np.minimum(j + r, nely)
             for k in range(kk1, kk2):
                 for l in range(ll1, ll2):
-                    col = k * cfg["nely"] + l
-                    fac = cfg["rmin"] - np.sqrt((i - k) * (i - k) + (j - l) * (j - l))
+                    col = k * nely + l
+                    fac = rmin - np.hypot(i - k, j - l)
                     iH[cc] = row
                     jH[cc] = col
                     sH[cc] = np.maximum(0.0, fac)
-                    cc = cc + 1
+                    cc += 1
     # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(cfg["nelx"] * cfg["nely"], cfg["nelx"] * cfg["nely"])).tocsc()
-    Hs = H.sum(1)
-
-    # BC's and support
-    dofs = np.arange(2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1))
-    fixed = np.union1d(dofs[0 : 2 * (cfg["nely"] + 1) : 2], np.array([2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1) - 1]))
-    free = np.setdiff1d(dofs, fixed)
-
-    # Solution and RHS vectors
-    f = np.zeros((ndof, 1))
-    u = np.zeros((ndof, 1))
-
-    # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
-    f[int(1 + (2 * cfg["forcedist"] * cfg["nelx"]) * (cfg["nely"] + 1)), 0] = -1
-
-    st.update(
-        {
-            "ndof": ndof,
-            "edofMat": edofMat,
-            "iK": iK,
-            "jK": jK,
-            "H": H,
-            "Hs": Hs,
-            "dofs": dofs,
-            "fixed": fixed,
-            "free": free,
-            "f": f,
-            "u": u,
-        }
-    )
-
-    return st
+    return coo_matrix((sH, (iH, jH)), shape=(nelx * nely, nelx * nely)).tocsc()
 
 
 def inner_opt(
@@ -292,12 +290,14 @@ def inner_opt(
             npt.NDArray: The processed density field (with overhang constraint if applicable)
     """
     cfg = cfg or {}
+    nelx, nely = cfg["nelx"], cfg["nely"]
+    overhang_constraint = cfg["overhang_constraint"]
     # Optimality criteria
     l1, l2, move = (0.0, 1e9, 0.2)
     # reshape to perform vector operations
-    xnew = np.zeros(cfg["nelx"] * cfg["nely"])
-    xPhys = np.zeros(cfg["nelx"] * cfg["nely"])
-    xPrint = np.zeros(cfg["nelx"] * cfg["nely"])
+    xnew = np.zeros(nelx * nely)
+    xPhys = np.zeros((nelx, nely))
+    xPrint = np.zeros(nelx * nely)
 
     while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > st.min_ratio:
         lmid = 0.5 * (l2 + l1)
@@ -309,10 +309,10 @@ def inner_opt(
             xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
 
         # Filter design variables
-        xPhys = np.asarray(st.H * xnew[np.newaxis].T / st.Hs)[:, 0]
-        xPrint, _, _ = overhang_filter(xPhys, cfg)
+        xPhys = np.asarray(st.H * xnew[np.newaxis].T / st.Hs)[:, 0].reshape((nelx, nely))
+        xPrint = overhang_filter_x(xPhys) if overhang_constraint else xPhys.ravel()
 
-        if xPrint.sum() > cfg["volfrac"] * cfg["nelx"] * cfg["nely"]:
+        if xPrint.sum() > cfg["volfrac"] * nelx * nely:
             l1 = lmid
         else:
             l2 = lmid
@@ -324,98 +324,99 @@ def inner_opt(
     return (xnew, xPhys, xPrint)
 
 
-@overload
-def overhang_filter(
-    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None = None
-) -> tuple[npt.NDArray[np.float64], None, None]: ...
+P = 40
+SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
+Ns = 3
+xi_0 = 0.5
+Q = P + np.log(Ns) / np.log(xi_0)
 
 
-@overload
-def overhang_filter(
-    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None, dc: npt.NDArray[np.float64], dv: npt.NDArray[np.float64]
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
-
-
-def overhang_filter(
+def compute_xi(
     x: npt.NDArray[np.float64],
-    cfg: dict[str, Any] | None = None,
-    dc: npt.NDArray[np.float64] | None = None,
-    dv: npt.NDArray[np.float64] | None = None,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None, npt.NDArray[np.float64] | None]:
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Shared part between :function:`overhang_filter_x` and  :function:`overhang_filter_d`."""
+    ep = 1e-4
+    nelx, nely = x.shape
+
+    x = design_to_image(x.ravel(), nelx, nely)
+
+    BACKSHIFT = 0.95 * (Ns ** (1 / Q)) * (SHIFT ** (P / Q))
+    xi = np.zeros(x.shape)
+    Xi = np.zeros(x.shape)
+    keep = np.zeros(x.shape)
+    sq = np.zeros(x.shape)
+
+    xi[nely - 1, :] = x[nely - 1, :].copy()
+    for i in reversed(range(nely - 1)):
+        cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
+        keep[i, :] = cbr[:nelx] ** P + cbr[1 : nelx + 1] ** P + cbr[2:] ** P
+        Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
+        sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
+        xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
+    return xi, Xi, sq, keep
+
+
+def overhang_filter_x(x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """Topology Optimization (TO) filter.
 
     Args:
         x: (npt.NDArray) The current density field during optimization.
-        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization.
+
+    Returns:
+        npt.NDArray: The updated design.
+    """
+    xi, *_ = compute_xi(x)
+    return image_to_design(xi)
+
+
+def overhang_filter_d(
+    x: npt.NDArray[np.float64],
+    dc: npt.NDArray[np.float64],
+    dv: npt.NDArray[np.float64],
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Topology Optimization (TO) filter.
+
+    Args:
+        x: (npt.NDArray) The current density field during optimization.
         dc: (npt.NDArray) The sensitivity field wrt. compliance.
         dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
 
     Returns:
         Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
     """
-    cfg = cfg or {}
-    if cfg["overhang_constraint"]:
-        P = 40
-        ep = 1e-4
-        xi_0 = 0.5
-        Ns = 3
-        nSens = 2  # dc and dv (hard-coded)
+    xi, Xi, sq, keep = compute_xi(x)
+    nelx, nely = x.shape
+    x = design_to_image(x.ravel(), nelx, nely)
+    nSens = 2  # dc and dv (hard-coded)
 
-        x = design_to_image(x, cfg["nelx"], cfg["nely"])
-        if dc is not None and dv is not None:
-            dc = design_to_image(dc, cfg["nelx"], cfg["nely"])
-            dv = design_to_image(dv, cfg["nelx"], cfg["nely"])
+    dc_copy = design_to_image(dc, nelx, nely)
+    dv_copy = design_to_image(dv, nelx, nely)
+    dfxi = [np.array(dc_copy), np.array(dv_copy)]
+    dfx = [np.array(dc_copy), np.array(dv_copy)]
+    lamb = np.zeros((nSens, nelx))
+    for i in range(nely - 1):
+        dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
+        dsmindXi = 1 - dsmindx
+        cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
 
-        Q = P + np.log(Ns) / np.log(xi_0)
-        SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
-        BACKSHIFT = 0.95 * (Ns ** (1 / Q)) * (SHIFT ** (P / Q))
-        xi = np.zeros(x.shape)
-        Xi = np.zeros(x.shape)
-        keep = np.zeros(x.shape)
-        sq = np.zeros(x.shape)
+        dmx = np.zeros((Ns, nelx))
+        for j in range(Ns):
+            dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
 
-        xi[cfg["nely"] - 1, :] = x[cfg["nely"] - 1, :].copy()
-        for i in reversed(range(cfg["nely"] - 1)):
-            cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
-            keep[i, :] = cbr[: cfg["nelx"]] ** P + cbr[1 : cfg["nelx"] + 1] ** P + cbr[2:] ** P
-            Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
-            sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
-            xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
+        qi = np.ravel([[i] * 3 for i in range(nelx)])
+        qj = qi + [-1, 0, 1] * nelx
+        qs = np.ravel(dmx.T)
 
-        if dc is not None and dv is not None:
-            dc_copy = dc.copy()
-            dv_copy = dv.copy()
-            dfxi = [np.array(dc_copy), np.array(dv_copy)]
-            dfx = [np.array(dc_copy), np.array(dv_copy)]
-            lamb = np.zeros((nSens, cfg["nelx"]))
-            for i in range(cfg["nely"] - 1):
-                dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
-                dsmindXi = 1 - dsmindx
-                cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
+        dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
+        for k in range(nSens):
+            dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
+            lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
 
-                dmx = np.zeros((Ns, cfg["nelx"]))
-                for j in range(Ns):
-                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : cfg["nelx"] + j] ** (P - 1))
+    i = nely - 1
+    for k in range(nSens):
+        dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
-                qi = np.ravel([[i] * 3 for i in range(cfg["nelx"])])
-                qj = qi + [-1, 0, 1] * cfg["nelx"]
-                qs = np.ravel(dmx.T)
+    dc, dv = dfx
+    dc, dv = image_to_design(dc), image_to_design(dv)
 
-                dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
-                for k in range(nSens):
-                    dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
-                    lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
-
-            i = cfg["nely"] - 1
-            for k in range(nSens):
-                dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
-
-            dc, dv = dfx
-            dc, dv = image_to_design(dc), image_to_design(dv)
-
-        xi = image_to_design(xi)
-
-    else:
-        xi = x
-
-    return (xi, dc, dv)
+    return (image_to_design(xi), dc, dv)

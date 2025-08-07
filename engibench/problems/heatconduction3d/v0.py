@@ -79,50 +79,47 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("volume", 0.3),
-        ("area", 0.5),
-    )
+
+    @dataclass
+    class Conditions:
+        """Structured representation of the conditions."""
+
+        volume: Annotated[
+            float,
+            bounded(lower=0.0, upper=1.0).category(THEORY),
+            bounded(lower=0.3, upper=0.6).warning().category(IMPL),
+        ] = 0.3
+        """Volume constraint"""
+        area: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
+        """Area constraint"""
+
+    @dataclass
+    class Config(Conditions):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        resolution: Annotated[
+            int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
+        ] = 51
+        """Resolution of the design space"""
+
+    config: Config
+
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_3d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
 
-    def __init__(self, volume: float = 0.3, area: float = 0.5, resolution: int = 51) -> None:
+    def __init__(self, **kwargs) -> None:
         """Initialize the HeatConduction3D problem.
 
         Args:
-            volume (float): Volume constraint.
-            area (float): Area constraint.
-            resolution (int): Resolution of the design space.
+            kwargs: Arguments are passed to :class:`HeatConduction3D.Config`.
         """
         super().__init__()
-        self.volume = volume
-        self.area = area
-        self.resolution = resolution
-        self.conditions = (
-            ("volume", self.volume),
-            ("area", self.area),
-        )
-        self.design_space = spaces.Box(
-            low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
-        )
-
-        @dataclass
-        class Config:
-            """Structured representation of configuration parameters for a numerical computation."""
-
-            resolution: Annotated[
-                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
-            ] = self.resolution
-            volume: Annotated[
-                float,
-                bounded(lower=0.0, upper=1.0).category(THEORY),
-                bounded(lower=0.3, upper=0.6).warning().category(IMPL),
-            ] = self.volume
-            area: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = self.area
-
-        self.Config = Config
+        self.config = self.Config(**kwargs)
+        resolution = self.config.resolution
+        self.conditions = self.Conditions(self.config.volume, self.config.area)
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(resolution, resolution, resolution), dtype=np.float64)
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
@@ -135,9 +132,9 @@ class HeatConduction3D(Problem[npt.NDArray]):
             float: The thermal compliance of the design.
         """
         config = config or {}
-        volume = config.get("volume", self.volume)
-        area = config.get("area", self.area)
-        resolution = config.get("resolution", self.resolution)
+        volume = config.get("volume", self.config.volume)
+        area = config.get("area", self.config.area)
+        resolution = config.get("resolution", self.config.resolution)
         if design is None:
             design = self.initialize_design(volume, resolution)
 
@@ -173,9 +170,9 @@ class HeatConduction3D(Problem[npt.NDArray]):
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
         config = config or {}
-        volume = config.get("volume", self.volume)
-        area = config.get("area", self.area)
-        resolution = config.get("resolution", self.resolution)
+        volume = config.get("volume", self.config.volume)
+        area = config.get("area", self.config.area)
+        resolution = config.get("resolution", self.config.resolution)
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
 
@@ -221,8 +218,8 @@ class HeatConduction3D(Problem[npt.NDArray]):
         Returns:
             HeatConduction3D: The initialized design.
         """
-        volume = volume if volume is not None else self.volume
-        resolution = resolution if resolution is not None else self.resolution
+        volume = volume if volume is not None else self.config.volume
+        resolution = resolution if resolution is not None else self.config.resolution
 
         self.__copy_templates()
         with open("templates/Des_var.txt", "w") as f:
