@@ -384,6 +384,9 @@ class Airfoil(Problem[DesignType]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
+        if isinstance(design["angle_of_attack"], np.ndarray):
+            design["angle_of_attack"] = design["angle_of_attack"][0]
+
         # docker pull image if not already pulled
         if container.RUNTIME is not None and self.container_id is not None:
             container.pull(self.container_id)
@@ -449,6 +452,9 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
+        if isinstance(starting_point["angle_of_attack"], np.ndarray):
+            starting_point["angle_of_attack"] = starting_point["angle_of_attack"][0]
+
         # docker pull image if not already pulled
         if container.RUNTIME is not None and self.container_id is not None:
             container.pull(self.container_id)
@@ -515,7 +521,11 @@ class Airfoil(Problem[DesignType]):
                 values = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)
                 if values is not None and "obj" in values:
                     objective = values["obj"]
-                    optisteps_history.append(OptiStep(obj_values=np.array(objective), step=vals["iter"]))
+                    # flatten objective if it is a list
+                    obj_np = np.array(objective)
+                    if obj_np.ndim > 1:
+                        obj_np = obj_np.flatten()
+                    optisteps_history.append(OptiStep(obj_values=obj_np, step=vals["iter"]))
 
         history.close()
 
