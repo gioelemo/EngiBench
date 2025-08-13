@@ -455,6 +455,7 @@ document.write(`
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
  | <a href="#I"><strong>I</strong></a>
+ | <a href="#J"><strong>J</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
@@ -471,7 +472,7 @@ document.write(`
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.Args">Args (class in engibench.utils.slurm)</a>
+      <li><a href="../utils/container/#engibench.utils.container.Apptainer">Apptainer (class in engibench.utils.container)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -503,8 +504,6 @@ document.write(`
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.Args.design_args">design_args (engibench.utils.slurm.Args attribute)</a>
-</li>
       <li><a href="../introduction/api/#engibench.core.Problem.design_space">design_space (engibench.core.Problem attribute)</a>
 </li>
       <li><a href="../utils/container/#engibench.utils.container.Docker">Docker (class in engibench.utils.container)</a>
@@ -524,6 +523,14 @@ document.write(`
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../utils/container/#engibench.utils.container.ContainerRuntime.is_available">is_available() (engibench.utils.container.ContainerRuntime class method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="J">J</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../utils/slurm/#engibench.utils.slurm.JobError">JobError (class in engibench.utils.slurm)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -565,8 +572,6 @@ document.write(`
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../introduction/api/#engibench.core.Problem.optimize">optimize() (engibench.core.Problem method)</a>
 </li>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.Args.optimize_args">optimize_args (engibench.utils.slurm.Args attribute)</a>
-</li>
   </ul></td>
 </tr></table>
 
@@ -577,11 +582,9 @@ document.write(`
 </li>
       <li><a href="../introduction/api/#engibench.core.Problem">Problem (class in engibench.core)</a>
 </li>
-      <li><a href="../introduction/api/#engibench.core.Problem.OptiStep">Problem.OptiStep (class in engibench.core)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.Args.problem_args">problem_args (engibench.utils.slurm.Args attribute)</a>
+      <li><a href="../introduction/api/#engibench.core.Problem.OptiStep">Problem.OptiStep (class in engibench.core)</a>
 </li>
       <li><a href="../utils/container/#engibench.utils.container.ContainerRuntime.pull">pull() (engibench.utils.container.ContainerRuntime class method)</a>
 
@@ -597,12 +600,14 @@ document.write(`
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../introduction/api/#engibench.core.Problem.random_design">random_design() (engibench.core.Problem method)</a>
 </li>
-      <li><a href="../introduction/api/#engibench.core.Problem.render">render() (engibench.core.Problem method)</a>
+      <li><a href="../utils/slurm/#engibench.utils.slurm.SubmittedJobArray.reduce">reduce() (engibench.utils.slurm.SubmittedJobArray method)</a>
 </li>
-      <li><a href="../introduction/api/#engibench.core.Problem.reset">reset() (engibench.core.Problem method)</a>
+      <li><a href="../introduction/api/#engibench.core.Problem.render">render() (engibench.core.Problem method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../introduction/api/#engibench.core.Problem.reset">reset() (engibench.core.Problem method)</a>
+</li>
       <li><a href="../utils/container/#engibench.utils.container.ContainerRuntime.run">run() (engibench.utils.container.ContainerRuntime class method)</a>
 
       <ul>
@@ -617,17 +622,19 @@ document.write(`
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../utils/slurm/#engibench.utils.slurm.SubmittedJobArray.save">save() (engibench.utils.slurm.SubmittedJobArray method)</a>
+</li>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig.sbatch_executable">sbatch_executable (engibench.utils.slurm.SlurmConfig attribute)</a>
 </li>
-      <li><a href="../introduction/api/#engibench.core.Problem.simulate">simulate() (engibench.core.Problem method)</a>
+      <li><a href="../utils/slurm/#engibench.utils.slurm.sbatch_map">sbatch_map() (in module engibench.utils.slurm)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.Args.simulate_args">simulate_args (engibench.utils.slurm.Args attribute)</a>
+      <li><a href="../introduction/api/#engibench.core.Problem.simulate">simulate() (engibench.core.Problem method)</a>
 </li>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig">SlurmConfig (class in engibench.utils.slurm)</a>
 </li>
-      <li><a href="../utils/slurm/#engibench.utils.slurm.submit">submit() (engibench.utils.slurm method)</a>
+      <li><a href="../utils/slurm/#engibench.utils.slurm.SubmittedJobArray">SubmittedJobArray (class in engibench.utils.slurm)</a>
 </li>
   </ul></td>
 </tr></table>

@@ -528,10 +528,16 @@ document.write(`
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Version of the problem&quot;&quot;&quot;</span>
     <span class="n">objectives</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ObjectiveDirection</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Objective names and types (minimize or maximize)&quot;&quot;&quot;</span>
-    <span class="n">conditions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">Conditions</span><span class="p">:</span> <span class="nb">type</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Conditions for the design problem as a dataclass declaring types, defaults and constraints&quot;&quot;&quot;</span>
+    <span class="n">conditions</span><span class="p">:</span> <span class="n">Any</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Conditions for the design problem&quot;&quot;&quot;</span>
     <span class="n">design_space</span><span class="p">:</span> <span class="n">spaces</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DesignType</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Design space (algorithm output)&quot;&quot;&quot;</span>
+    <span class="n">Config</span><span class="p">:</span> <span class="nb">type</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataclass declaring types, defaults (optional) and constraints&quot;&quot;&quot;</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instance of :class:`Config` held by an instance of `Problem`&quot;&quot;&quot;</span>
     <span class="n">dataset_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;String identifier for the problem (useful to pull datasets)&quot;&quot;&quot;</span>
     <span class="n">design_constraints</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">constraint</span><span class="o">.</span><span class="n">Constraint</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
@@ -540,8 +546,6 @@ document.write(`
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset with designs and performances&quot;&quot;&quot;</span>
     <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;String identifier for the singularity container&quot;&quot;&quot;</span>
-    <span class="n">Config</span><span class="p">:</span> <span class="nb">type</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataclass declaring types, defaults (optional) and constraints&quot;&quot;&quot;</span>
 
     <span class="c1"># This handles the RNG properly</span>
     <span class="n">np_random</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span>
@@ -562,19 +566,14 @@ document.write(`
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">conditions_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the conditions as a dictionary.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conditions</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">objectives_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the objective names as a list.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectives</span><span class="p">]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">conditions_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the condition names as a list.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conditions</span><span class="p">]</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">objectives_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the objective names as a list.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectives</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conditions</span><span class="p">)]</span>
 
 <div class="viewcode-block" id="Problem.simulate">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.simulate">[docs]</a>
@@ -656,12 +655,13 @@ document.write(`
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if config and design violate any constraints declared in `Config` and `design_space`.</span>
 
 <span class="sd">        Return a :class:`constraint.Violations` object containing all violations.</span>
+
+<span class="sd">        If the class instance holds an attribute `config` which is not `None`,</span>
+<span class="sd">        the fields of `config` will be used as default values.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">checked_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="o">**</span><span class="n">config</span><span class="p">)</span>
-            <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check_field_constraints</span><span class="p">(</span><span class="n">checked_config</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">([],</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="n">checked_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="o">**</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check_field_constraints</span><span class="p">(</span><span class="n">checked_config</span><span class="p">)</span>
 
         <span class="nd">@constraint</span><span class="o">.</span><span class="n">constraint</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">design_constraint</span><span class="p">(</span><span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
