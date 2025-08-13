@@ -10,6 +10,7 @@ airfoil
 
 from collections.abc import Iterator, Sequence
 import contextlib
+import dataclasses
 import importlib.abc
 import importlib.machinery
 import inspect
@@ -50,7 +51,7 @@ class ProblemDirective(SphinxDirective):
             f"{obj}: ↑" if direction == ObjectiveDirection.MAXIMIZE else f"{obj}: ↓"
             for obj, direction in problem.objectives
         ]
-        conditions = [f"{cond}: {value}" for cond, value in problem.conditions]
+        conditions = [f"{f.name}: {f.default}" for f in dataclasses.fields(problem.Conditions)]
 
         tab_data = [
             ("Version", str(problem.version)),
