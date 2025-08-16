@@ -292,6 +292,7 @@ class Beams2D(Problem[npt.NDArray]):
             **kwargs: Additional keyword arguments.
         """
         super().reset(seed, **kwargs)
+        self.__st = State()
 
     def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
