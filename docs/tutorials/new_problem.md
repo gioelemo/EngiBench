@@ -1,5 +1,8 @@
 # Adding a new problem
 
+Note:
+   Read our [contribution guide](https://github.com/IDEALLab/EngiBench/blob/main/CONTRIBUTING.md) before diving into the code!
+
 ## Install
 ```{include} ../../README.md
 :start-after: <!-- start dev-install -->
