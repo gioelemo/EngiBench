@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Heat Conduction &#8212; EngiBench Documentation</title>
+    <title>External Problems &#8212; EngiBench Documentation</title>
   
   
   
@@ -40,12 +40,12 @@
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/heatconduction';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/external';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
     <link rel="search" title="Search" href="../../search/" />
-    <link rel="next" title="Heat Conduction 2D" href="../heatconduction2d/" />
-    <link rel="prev" title="PowerElectronics" href="../power_electronics/" />
+    <link rel="next" title="Running in containers" href="../../utils/container/" />
+    <link rel="prev" title="Heat Conduction 3D" href="../heatconduction3d/" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -174,12 +174,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
-<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Heat Conduction</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../external/">External Problems</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">External Problems</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Algorithms</span></p>
 <ul class="nav bd-sidenav">
@@ -370,7 +370,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/heatconduction.md" target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/external.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -387,7 +387,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/heatconduction.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/external.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -499,7 +499,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Heat Conduction</h1>
+    <h1>External Problems</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -513,23 +513,33 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="heat-conduction">
-<h1>Heat Conduction<a class="headerlink" href="#heat-conduction" title="Link to this heading">#</a></h1>
-<p>These problems represent typical topology optimization problems where the goal is to decide where to place material in the design domain.</p>
-<div style="margin-left: 300px; display: flex; justify-content: center; gap: 20px; flex-direction: column; align-items: center;">
-    <div style="display: flex; justify-content: center; gap: 20px;">
-        <img src="../../_static/img/problems/heatconduction2d.png" alt="Heat conduction problem setup showing a design domain with heat source and sink" width="400"/>
-        <img src="../../_static/img/problems/heatconduction3d.png" alt="Heat conduction problem setup showing a design domain with heat source and sink" width="400"/>
-    </div>
-    <div style="text-align: center;">Left: 2D version, Right: 3D version</div>
-</div>
-<p>We provide two versions for this problem:</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="../heatconduction2d/"><span class="std std-doc">Heat Conduction 2D</span></a> In this problem, we optimize a 2D slice of an object.</p></li>
-<li><p><a class="reference internal" href="../heatconduction3d/"><span class="std std-doc">Heat Conduction 3D</span></a> This version is heavier, we optimize a 3D object.</p></li>
-</ul>
-<div class="toctree-wrapper compound">
-</div>
+  <section class="tex2jax_ignore mathjax_ignore" id="external-problems">
+<h1>External Problems<a class="headerlink" href="#external-problems" title="Link to this heading">#</a></h1>
+<p>While EngiBench provides and maintains several problems, there are also notable external problems that follow the EngiBench API. These are <strong>not maintained</strong> by the EngiBench team and therefore are not guaranteed to work out of the box or be updated regularly.</p>
+<p><em>If you’d like to contribute an environment, please submit a PR by editing this <a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/problems/external.md">file</a>. Additional instructions can be found inside that file.</em></p>
+<hr class="docutils" />
+<!-- Template
+- [NAME: SUB_NAME_IF_PRESENT](LINK)
+
+  ![EngiBench version dependency](ADD YOUR BADGE HERE)
+  ![GitHub stars](ADD YOUR BADGE HERE OPTIONAL)
+
+  A short 2–5 sentence description.
+-->
+<!-- Instructions
+- Follow the template in this file
+- Problems and environment categories should be sorted alphabetically
+- Name your PR something like "Add external environment X"
+-->
+<!-- Example -- this is fake, don't try to open the GH links.
+
+- [BoatBench: EngiBench with Boats](https://github.com/IDEALLab/BoatBench)
+
+  ![EngiBench version dependency](https://img.shields.io/badge/EngiBench-v0.1.0-blue)
+  ![GitHub stars](https://img.shields.io/github/stars/IDEALLab/BoatBench)
+
+  A collection of EngiBench problems for designing boats. Integrates with an advanced simulation software and provides a variety of tasks. Built on top of [BoatSimulator](https://github.com/Example/Example).
+-->
 </section>
 
 
@@ -544,20 +554,20 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../power_electronics/"
+       href="../heatconduction3d/"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">PowerElectronics</p>
+        <p class="prev-next-title">Heat Conduction 3D</p>
       </div>
     </a>
     <a class="right-next"
-       href="../heatconduction2d/"
+       href="../../utils/container/"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Heat Conduction 2D</p>
+        <p class="prev-next-title">Running in containers</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
