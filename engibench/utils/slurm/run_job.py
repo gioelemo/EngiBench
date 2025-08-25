@@ -54,6 +54,7 @@ def map_job_group(work_dir: str, n_jobs: int) -> None:
 
 def reduce_job_results(work_dir: str, n_jobs: int) -> None:
     """Collect all results or errors from job array jobs, passing to a reduce callback."""
+    results = []  # prepare empty list for error, occurring before `results` is assigned a value
     try:
         with open(os.path.join(work_dir, "jobs", "reduce.pkl"), "rb") as in_stream:
             reduce_callback = pickle.load(in_stream)
