@@ -58,6 +58,7 @@ problems/thermoelastic2d
 problems/photonics2d
 problems/power_electronics
 problems/heatconduction
+problems/external
 ```
 
 ```{toctree}
