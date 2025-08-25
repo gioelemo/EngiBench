@@ -18,8 +18,10 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
+import importlib
 import os
 import shutil
+import sys
 from typing import Annotated, Any
 
 from gymnasium import spaces
@@ -43,6 +45,12 @@ from engibench.problems.airfoil.utils import scale_coords
 from engibench.utils import container
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
+
+# Allow loading pyoptsparse histories even if pyoptsparse is not installed:
+if importlib.util.find_spec("pyoptsparse") is None:
+    from engibench.problems.airfoil import fake_pyoptsparse
+
+    sys.modules["pyoptsparse"] = fake_pyoptsparse
 
 DesignType = dict[str, Any]
 
