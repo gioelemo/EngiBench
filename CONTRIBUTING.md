@@ -26,7 +26,7 @@ EngiBench aims to simplify research and adoption of ML for engineering design. W
 Before starting development, **please reach out to us**:
 
 * **Features**: Open an issue describing the feature, expected behavior, and proposed API. Keep in mind that features should scale to the general problem set; we do not include features tied to a specific simulator in the core API.
-* **Problems**: Problems are carefully vetted before inclusion. You have three options depending on how you want to use or share a problem:
+* **Problems**: Problems are carefully vetted before inclusion. You have two options depending on how you want to use or share a problem:
 
   - **Contribute to EngiBench**:
     If you believe your problem would be broadly useful to the community and is stable and clean enough to be maintained long-term, please [open an issue](https://github.com/IDEALLab/EngiBench/issues) describing the problem, its relevance, and (if applicable) linking to the associated paper.
