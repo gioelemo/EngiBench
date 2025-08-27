@@ -131,6 +131,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             float: The thermal compliance of the design.
         """
+        self._check_reset_called("simulate")
+
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)
@@ -169,6 +171,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
+        self._check_reset_called("optimize")
+
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)

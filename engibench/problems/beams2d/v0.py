@@ -193,6 +193,8 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
+        self._check_reset_called("simulate")
+
         # This condition is needed to convert user-provided designs (images) to flat arrays. Normally does not apply, i.e., during optimization.
         if len(design.shape) > 1:
             design = image_to_design(design)
@@ -225,6 +227,8 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
+        self._check_reset_called("optimize")
+
         base_config = self.Config(**{**dataclasses.asdict(self.simulate_config), **(config or {})})
 
         self.__st = State.new(base_config.nelx, base_config.nely, base_config.rmin, base_config.forcedist)
@@ -252,6 +256,7 @@ class Beams2D(Problem[npt.NDArray]):
         while change > self.__st.min_change and loop < base_config.max_iter:
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=dataclasses.asdict(base_config))
             simulate_config = upcast(base_config)
+            self.reset_called = True  # override for multiple reset calls in optimize
             c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(simulate_config))
 
             # Record the current state in optisteps_history

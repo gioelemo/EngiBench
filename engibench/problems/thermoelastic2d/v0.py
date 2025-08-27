@@ -164,6 +164,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
+        self._check_reset_called("simulate")
+
         boundary_dict = dataclasses.asdict(self.conditions)
         for key, value in (config or {}).items():
             if key in boundary_dict:
@@ -187,6 +189,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
+        self._check_reset_called("optimize")
+
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
         results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)

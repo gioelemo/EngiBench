@@ -338,6 +338,8 @@ class Photonics2D(Problem[npt.NDArray]):
         Returns:
             npt.NDArray: 1-element array: [total_overlap - penalty], where higher is better.
         """
+        self._check_reset_called("simulate")
+
         conditions = self._setup_simulation(config)
 
         # --- Run Simulation ---
@@ -385,6 +387,8 @@ class Photonics2D(Problem[npt.NDArray]):
                   value of the internally optimized objective (i.e., `total_overlap - penalty`).
                   The `step` attribute corresponds to the optimizer iteration.
         """
+        self._check_reset_called("optimize")
+
         conditions = self._setup_simulation(config)
 
         # Reset the current beta to one for the optimization

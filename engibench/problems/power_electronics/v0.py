@@ -153,6 +153,8 @@ class PowerElectronics(Problem[npt.NDArray]):
         Returns:
             simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
+        self._check_reset_called("simulate")
+
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)

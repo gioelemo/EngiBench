@@ -390,6 +390,8 @@ class Airfoil(Problem[DesignType]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
+        self._check_reset_called("simulate")
+
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
 
@@ -458,6 +460,8 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
+        self._check_reset_called("optimize")
+
         if isinstance(starting_point["angle_of_attack"], np.ndarray):
             starting_point["angle_of_attack"] = starting_point["angle_of_attack"][0]
 

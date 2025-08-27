@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import dataclasses
 from enum import auto
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from datasets import Dataset
 from datasets import load_dataset
@@ -45,7 +45,7 @@ class Problem(Generic[DesignType]):
     - :meth:`check_constraints` - to check if a design and conditions violate any constraints.
     - :meth:`simulate` - to simulate a design and return the performance given some conditions.
     - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
-    - :meth:`reset` - to reset the simulator and numpy random to a given seed.
+    - :meth:`reset` - to reset the simulator and numpy random to a given seed. Should be called before each call to `simulate` or `optimize`.
     - :meth:`render` - to render a design in a human-readable format.
     - :meth:`random_design` - to generate a valid random design.
 
@@ -105,7 +105,7 @@ class Problem(Generic[DesignType]):
         Args:
             **kwargs: Keyword arguments.
         """
-        self.reset(**kwargs)
+        self.reset_called = False
 
     @property
     def dataset(self) -> Dataset:
@@ -123,6 +123,18 @@ class Problem(Generic[DesignType]):
     def conditions_keys(self) -> list[str]:
         """Returns the condition names as a list."""
         return [f.name for f in dataclasses.fields(self.conditions)]
+
+    def _check_reset_called(self, func_name: str, *, toggle: bool = True) -> None:
+        """Check if reset() has been called before calling func().
+
+        Args:
+            func_name (str): The name of the function to check.
+            toggle (bool): Whether to toggle the reset_called attribute.
+        """
+        if not self.reset_called:
+            raise RuntimeError(f"reset() must be called before each {func_name}()")
+        if toggle:
+            self.reset_called = False
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
@@ -159,6 +171,7 @@ class Problem(Generic[DesignType]):
         Args:
             seed (int, optional): The seed to reset to. If None, a random seed is used.
         """
+        self.reset_called = True
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 
