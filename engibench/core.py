@@ -99,12 +99,8 @@ class Problem(Generic[DesignType]):
     # This handles the RNG properly
     np_random: np.random.Generator
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize the problem.
-
-        Args:
-            **kwargs: Keyword arguments.
-        """
+    def __init__(self) -> None:
+        """Initialize the problem."""
         self.reset_called = False
 
     @property
