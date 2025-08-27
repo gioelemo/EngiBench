@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import dataclasses
 from enum import auto
 from enum import Enum
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
 from datasets import load_dataset
