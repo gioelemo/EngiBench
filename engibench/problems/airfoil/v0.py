@@ -624,13 +624,15 @@ if __name__ == "__main__":
     config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
     # Simulate the design
-    print(problem.simulate(design, config=config, mpicores=8))
+    print("Simulation results: ", problem.simulate(design, config=config, mpicores=8))
 
     # Cleanup the study directory; will delete the previous contents from simulate in this case
-    problem.reset(seed=0, cleanup=True)
+    problem.reset(seed=1, cleanup=True)
 
     # Get design and conditions from the dataset, render design
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    print("Optimized design: ", opt_design)
+    print("Optimization history: ", optisteps_history)
 
     # Render the final optimized design
     problem.render(opt_design, open_window=False, save=True)
