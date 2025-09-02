@@ -497,7 +497,7 @@ document.write(`
 <span class="sd">    - :meth:`check_constraints` - to check if a design and conditions violate any constraints.</span>
 <span class="sd">    - :meth:`simulate` - to simulate a design and return the performance given some conditions.</span>
 <span class="sd">    - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.</span>
-<span class="sd">    - :meth:`reset` - to reset the simulator and numpy random to a given seed.</span>
+<span class="sd">    - :meth:`reset` - to reset the simulator and numpy random to a given seed. Should be called before each call to `simulate` or `optimize`.</span>
 <span class="sd">    - :meth:`render` - to render a design in a human-readable format.</span>
 <span class="sd">    - :meth:`random_design` - to generate a valid random design.</span>
 
@@ -551,13 +551,9 @@ document.write(`
     <span class="c1"># This handles the RNG properly</span>
     <span class="n">np_random</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the problem.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            **kwargs: Keyword arguments.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the problem.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dataset</span><span class="p">:</span>
