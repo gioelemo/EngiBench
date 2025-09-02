@@ -6,7 +6,7 @@ Our API is designed to be simple and easy to use. Here is a basic example of how
 from engibench.problems.beams2d.v0 import Beams2D
 
 # Create a problem
-problem = Beams2D()
+problem = Beams2D(seed=0)
 
 # Inspect problem
 problem.design_space  # Box(0.0, 1.0, (50, 100), float64)
@@ -33,6 +33,7 @@ violated_constraints = problem.check_constraints(generated_design, desired_conds
 if not violated_constraints:
     # Only simulate to get objective values
     objs = problem.simulate(design=generated_design, config=desired_conds)
+    problem.reset(seed=42)
     # Or run a gradient-based optimizer to polish the generate design
     opt_design, history = problem.optimize(starting_point=generated_design, config=desired_conds)
 ```

@@ -159,13 +159,14 @@ class Beams2D(Problem[npt.NDArray]):
     dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
     container_id = None
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
         """Initializes the Beams2D problem.
 
         Args:
+            seed (int): The random seed for the problem.
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
         """
-        super().__init__()
+        super().__init__(seed=seed)
 
         # Replace the config with any new configs passed in
         self.config = self.Config(**(config or {}))
@@ -252,6 +253,7 @@ class Beams2D(Problem[npt.NDArray]):
         while change > self.__st.min_change and loop < base_config.max_iter:
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=dataclasses.asdict(base_config))
             simulate_config = upcast(base_config)
+            self.reset_called = True  # override for multiple reset calls in optimize
             c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(simulate_config))
 
             # Record the current state in optisteps_history
@@ -332,8 +334,7 @@ if __name__ == "__main__":
     # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
     # If a new nely and nelx are not passed in, uses the default conditions.
 
-    problem = Beams2D()
-    problem.reset(seed=0)
+    problem = Beams2D(seed=0)
 
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
@@ -361,6 +362,7 @@ if __name__ == "__main__":
 
     # Sample Optimization
     print("\nNow conducting a sample optimization with the given configs:", config)
+    problem.reset(seed=1)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
     optimal_design, optisteps_history = problem.optimize(config=config)

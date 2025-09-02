@@ -137,14 +137,13 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
             assert 0.0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
-    def __init__(self) -> None:
+    def __init__(self, seed: int = 0) -> None:
         """Initializes the thermoelastic2D problem.
 
         Args:
-            base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
+            seed (int): The random seed for the problem.
         """
-        super().__init__()
-        self.seed = None
+        super().__init__(seed=seed)
 
     def reset(self, seed: int | None = None) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -227,8 +226,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     # --- Create a new problem
-    problem = ThermoElastic2D()
-    problem.reset()
+    problem = ThermoElastic2D(seed=0)
 
     # --- Load the problem dataset
     dataset = problem.dataset
@@ -246,5 +244,6 @@ if __name__ == "__main__":
     problem.render(design, open_window=True)
 
     # --- Evaluate a design ---
+    problem.reset(seed=0)
     design, _ = problem.random_design()
     print(problem.simulate(design))

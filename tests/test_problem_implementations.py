@@ -97,8 +97,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
-    problem = problem_class()
-    problem.reset(seed=1)
+    problem = problem_class(seed=1)
     design, _ = problem.random_design()
 
     # Test simulation outputs
@@ -116,6 +115,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     if problem_class.__module__.startswith("engibench.problems.power_electronics"):
         print(f"Skipping optimization test for power electronics problem {problem_class.__name__}")
         return
+    problem.reset(seed=1)
     optimal_design, history = problem.optimize(starting_point=design)
     if isinstance(problem.design_space, spaces.Box):
         assert np.all(optimal_design >= problem.design_space.low), (

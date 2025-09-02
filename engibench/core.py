@@ -45,7 +45,7 @@ class Problem(Generic[DesignType]):
     - :meth:`check_constraints` - to check if a design and conditions violate any constraints.
     - :meth:`simulate` - to simulate a design and return the performance given some conditions.
     - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
-    - :meth:`reset` - to reset the simulator and numpy random to a given seed.
+    - :meth:`reset` - to reset the simulator and numpy random to a given seed. Should be called before each call to `simulate` or `optimize`.
     - :meth:`render` - to render a design in a human-readable format.
     - :meth:`random_design` - to generate a valid random design.
 
@@ -99,13 +99,9 @@ class Problem(Generic[DesignType]):
     # This handles the RNG properly
     np_random: np.random.Generator
 
-    def __init__(self, **kwargs: Any) -> None:
-        """Initialize the problem.
-
-        Args:
-            **kwargs: Keyword arguments.
-        """
-        self.reset(**kwargs)
+    def __init__(self, seed: int = 0) -> None:
+        """Initialize the problem."""
+        self.reset(seed=seed)
 
     @property
     def dataset(self) -> Dataset:

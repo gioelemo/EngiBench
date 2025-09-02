@@ -231,6 +231,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     def __init__(
         self,
+        seed: int = 0,
         config: dict[str, Any] | None = None,
         num_elems_x: int = Config.num_elems_x,
         num_elems_y: int = Config.num_elems_y,
@@ -239,12 +240,13 @@ class Photonics2D(Problem[npt.NDArray]):
         """Initializes the Photonics2D problem.
 
         Args:
+            seed (int): The random seed for the problem.
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
             num_elems_x (int): Number of grid cells in x (default: 120).
             num_elems_y (int): Number of grid cells in y (default: 120).
             **kwargs: Additional keyword arguments.
         """
-        super().__init__(**kwargs)
+        super().__init__(seed=seed, **kwargs)
 
         # Replace the conditions with any new configs passed in
         self.config = self.Config(num_elems_x=num_elems_x, num_elems_y=num_elems_y, **(config or {}))
@@ -704,8 +706,7 @@ if __name__ == "__main__":
         "lambda2": 0.84,
         "blur_radius": 1,
     }
-    problem = Photonics2D(config=problem_config, num_elems_x=120, num_elems_y=120)
-    problem.reset(seed=42)  # Use a seed
+    problem = Photonics2D(config=problem_config, num_elems_x=120, num_elems_y=120, seed=42)
 
     start_design, _ = problem.random_design(noise=0.1, blur=1)  # Randomized design with noise
     fig_start = problem.render(start_design)
@@ -719,6 +720,7 @@ if __name__ == "__main__":
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
     opt_config = {"num_optimization_steps": 200, "save_frame_interval": 2, "initial_beta": 1.0}
+    problem.reset(seed=42)
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
@@ -734,6 +736,7 @@ if __name__ == "__main__":
 
     print("Simulating the final optimized design...")
     # Simulate returns the raw objective = penalty - overlap1*overlap2
+    problem.reset(seed=43)
     obj_opt_raw = problem.simulate(optimized_design)
     print(f"Optimized Raw Objective ({problem.objectives_keys[0]}): {obj_opt_raw[0]:.4f}")
 
