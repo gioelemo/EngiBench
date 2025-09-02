@@ -137,14 +137,13 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
             assert 0.0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
-    def __init__(self) -> None:
+    def __init__(self, seed: int = 0) -> None:
         """Initializes the thermoelastic2D problem.
 
         Args:
-            base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
+            seed (int): The random seed for the problem.
         """
-        super().__init__()
-        self.seed = None
+        super().__init__(seed=seed)
 
     def reset(self, seed: int | None = None) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -164,8 +163,6 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
-        self._check_reset_called("simulate")
-
         boundary_dict = dataclasses.asdict(self.conditions)
         for key, value in (config or {}).items():
             if key in boundary_dict:
@@ -189,8 +186,6 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        self._check_reset_called("optimize")
-
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
         results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
@@ -231,8 +226,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     # --- Create a new problem
-    problem = ThermoElastic2D()
-    problem.reset()
+    problem = ThermoElastic2D(seed=0)
 
     # --- Load the problem dataset
     dataset = problem.dataset
@@ -250,5 +244,6 @@ if __name__ == "__main__":
     problem.render(design, open_window=True)
 
     # --- Evaluate a design ---
+    problem.reset(seed=0)
     design, _ = problem.random_design()
     print(problem.simulate(design))

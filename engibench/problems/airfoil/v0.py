@@ -199,10 +199,11 @@ class Airfoil(Problem[DesignType]):
                 f"Config.area_ratio: {area_ratio} ∉ [area_ratio_min={area_ratio_min}, 1.2]"
             )
 
-    def __init__(self, base_directory: str | None = None) -> None:
+    def __init__(self, seed: int = 0, base_directory: str | None = None) -> None:
         """Initializes the Airfoil problem.
 
         Args:
+            seed (int): The random seed for the problem.
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
         """
         # This is used for intermediate files
@@ -222,7 +223,7 @@ class Airfoil(Problem[DesignType]):
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
-        super().__init__()
+        super().__init__(seed=seed)
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -239,8 +240,6 @@ class Airfoil(Problem[DesignType]):
         self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
-        clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
-
     def __design_to_simulator_input(self, design: DesignType, config: dict[str, Any], filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
@@ -252,6 +251,9 @@ class Airfoil(Problem[DesignType]):
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
             filename (str): The filename to save the design to.
         """
+        # Creates the study directory
+        clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
+
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         # Calculate the off-the-wall distance
@@ -390,8 +392,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
-        self._check_reset_called("simulate")
-
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
 
@@ -460,8 +460,6 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
-        self._check_reset_called("optimize")
-
         if isinstance(starting_point["angle_of_attack"], np.ndarray):
             starting_point["angle_of_attack"] = starting_point["angle_of_attack"][0]
 
@@ -614,8 +612,7 @@ class Airfoil(Problem[DesignType]):
 if __name__ == "__main__":
     # Initialize the problem
 
-    problem = Airfoil()
-    problem.reset(seed=0, cleanup=True)
+    problem = Airfoil(seed=0)
 
     # Retrieve the dataset
     dataset = problem.dataset
@@ -630,7 +627,7 @@ if __name__ == "__main__":
     print(problem.simulate(design, config=config, mpicores=8))
 
     # Cleanup the study directory; will delete the previous contents from simulate in this case
-    problem.reset(seed=0, cleanup=False)
+    problem.reset(seed=0, cleanup=True)
 
     # Get design and conditions from the dataset, render design
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)

@@ -45,8 +45,7 @@ pip install "engibench[all]"
 from engibench.problems.beams2d.v0 import Beams2D
 
 # Create a problem
-problem = Beams2D()
-problem.reset(seed=0)
+problem = Beams2D(seed=0)
 
 # Inspect problem
 problem.design_space  # Box(0.0, 1.0, (50, 100), float64)

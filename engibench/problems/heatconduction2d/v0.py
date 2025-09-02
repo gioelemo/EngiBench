@@ -109,13 +109,14 @@ class HeatConduction2D(Problem[npt.NDArray]):
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, seed: int = 0, **kwargs: Any) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
+            seed (int): The random seed for the problem.
             kwargs: Arguments are passed to :class:`HeatConduction2D.Config`.
         """
-        super().__init__()
+        super().__init__(seed=seed)
         self.config = self.Config(**kwargs)
         resolution = self.config.resolution
         self.conditions = self.Conditions(self.config.volume, self.config.length)
@@ -131,8 +132,6 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             float: The thermal compliance of the design.
         """
-        self._check_reset_called("simulate")
-
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)
@@ -171,8 +170,6 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
-        self._check_reset_called("optimize")
-
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)
@@ -287,8 +284,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 # Check if the script is run directly
 if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
-    problem = HeatConduction2D()
-    problem.reset(seed=0)
+    problem = HeatConduction2D(seed=0)
     design_as_list = problem.dataset["train"]["optimal_design"][0]
     design_as_array = np.array(design_as_list)
     des, traj = problem.optimize(starting_point=design_as_array)

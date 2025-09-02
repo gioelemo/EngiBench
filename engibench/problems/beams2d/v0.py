@@ -159,13 +159,14 @@ class Beams2D(Problem[npt.NDArray]):
     dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
     container_id = None
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
         """Initializes the Beams2D problem.
 
         Args:
+            seed (int): The random seed for the problem.
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
         """
-        super().__init__()
+        super().__init__(seed=seed)
 
         # Replace the config with any new configs passed in
         self.config = self.Config(**(config or {}))
@@ -193,8 +194,6 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
-        self._check_reset_called("simulate")
-
         # This condition is needed to convert user-provided designs (images) to flat arrays. Normally does not apply, i.e., during optimization.
         if len(design.shape) > 1:
             design = image_to_design(design)
@@ -227,8 +226,6 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        self._check_reset_called("optimize")
-
         base_config = self.Config(**{**dataclasses.asdict(self.simulate_config), **(config or {})})
 
         self.__st = State.new(base_config.nelx, base_config.nely, base_config.rmin, base_config.forcedist)
@@ -336,8 +333,7 @@ if __name__ == "__main__":
     # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
     # If a new nely and nelx are not passed in, uses the default conditions.
 
-    problem = Beams2D()
-    problem.reset(seed=0)
+    problem = Beams2D(seed=0)
 
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
@@ -365,6 +361,7 @@ if __name__ == "__main__":
 
     # Sample Optimization
     print("\nNow conducting a sample optimization with the given configs:", config)
+    problem.reset(seed=1)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
     optimal_design, optisteps_history = problem.optimize(config=config)

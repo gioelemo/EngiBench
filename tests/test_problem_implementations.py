@@ -97,8 +97,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
-    problem = problem_class()
-    problem.reset(seed=1)
+    problem = problem_class(seed=1)
     design, _ = problem.random_design()
 
     # Test simulation outputs

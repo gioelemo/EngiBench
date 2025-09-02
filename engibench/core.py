@@ -99,9 +99,9 @@ class Problem(Generic[DesignType]):
     # This handles the RNG properly
     np_random: np.random.Generator
 
-    def __init__(self) -> None:
+    def __init__(self, seed: int = 0) -> None:
         """Initialize the problem."""
-        self.reset_called = False
+        self.reset(seed=seed)
 
     @property
     def dataset(self) -> Dataset:
@@ -119,18 +119,6 @@ class Problem(Generic[DesignType]):
     def conditions_keys(self) -> list[str]:
         """Returns the condition names as a list."""
         return [f.name for f in dataclasses.fields(self.conditions)]
-
-    def _check_reset_called(self, func_name: str, *, toggle: bool = True) -> None:
-        """Check if reset() has been called before calling func().
-
-        Args:
-            func_name (str): The name of the function to check.
-            toggle (bool): Whether to toggle the reset_called attribute.
-        """
-        if not self.reset_called:
-            raise RuntimeError(f"reset() must be called before each {func_name}()")
-        if toggle:
-            self.reset_called = False
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
@@ -167,7 +155,6 @@ class Problem(Generic[DesignType]):
         Args:
             seed (int, optional): The seed to reset to. If None, a random seed is used.
         """
-        self.reset_called = True
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 

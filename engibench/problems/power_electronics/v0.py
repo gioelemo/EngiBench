@@ -111,6 +111,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
     def __init__(
         self,
+        seed: int = 0,
         target_dir: str = os.getcwd(),
         original_netlist_path: str = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "data/5_4_3_6_10-dcdc_converter_1.net"
@@ -121,13 +122,14 @@ class PowerElectronics(Problem[npt.NDArray]):
         """Initializes the Power Electronics problem.
 
         Args:
+            seed (int): The random seed for the problem.
             target_dir: The target directory for the rewritten netlist, log and raw files. Default to os.getcwd().
             original_netlist_path: The path to the original netlist file. Accepts both relative and absolute paths.
             bucket_id: The bucket ID for the netlist file. E.g. "5_4_3_6_10".
             mode: The mode for the simulation. Default to "control". mode = "batch" is for development.
             ngspice_path: The path to the ngspice executable for Windows.
         """
-        super().__init__()
+        super().__init__(seed=seed)
 
         self.config = Config(
             target_dir=target_dir,
@@ -153,8 +155,6 @@ class PowerElectronics(Problem[npt.NDArray]):
         Returns:
             simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
-        self._check_reset_called("simulate")
-
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
@@ -206,10 +206,10 @@ class PowerElectronics(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
-    problem = PowerElectronics(mode="batch")
+    problem = PowerElectronics(seed=0, mode="batch")
 
     # Initialize the problem with default values
-    problem = PowerElectronics()
+    problem = PowerElectronics(seed=0)
 
     # Manually add the sweep data
     sweep_data = [
@@ -264,6 +264,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
+    problem.reset(seed=0)
     simulation_results = problem.simulate(design=np.array(sweep_data))
     print(simulation_results)  # [-1.27858   -0.025081   0.7827396]
 
