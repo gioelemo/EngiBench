@@ -110,7 +110,7 @@ class Photonics2D(Problem[npt.NDArray]):
     of the design. The size of the device -- expressed as `nelx` and `nely` -- is also adjustable,
     and could be viewed as a possible condition for multi-resolution problems, but in practice, as with
     `Beams2D`, this is built into the problem definition since it produces a different dataset.
-    
+
     Default problem parameters that can be overridden via the `config` dict:
     - `lambda1`: The first input wavelength in μm (default: 1.5 μm).
     - `lambda2`: The first input wavelength in μm (default: 1.3 μm).
