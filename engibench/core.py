@@ -188,7 +188,7 @@ class Problem(Generic[DesignType]):
         the fields of `config` will be used as default values.
         """
         defaults = dataclasses.asdict(self.config) if self.config is not None else {}
-        checked_config = self.Config(**defaults, **config)
+        checked_config = self.Config(**{**defaults, **config})
         violations = constraint.check_field_constraints(checked_config)
 
         @constraint.constraint
