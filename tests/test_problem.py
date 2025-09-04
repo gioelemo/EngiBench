@@ -59,6 +59,15 @@ def test_check_constraints_detects_missing_parameters() -> None:
         FakeProblem().check_constraints(design, config)
 
 
+def test_check_constraints_overrides_default_values() -> None:
+    design = np.zeros((2, 3))
+    fake_problem = FakeProblem()
+    fake_problem.config = FakeProblem.Config(x=10)
+    config = {"y": 1.0}
+    violations = fake_problem.check_constraints(design, config)
+    assert causes(violations) == ["Config.y: 1.0 ∉ [-∞, -1.0]"]
+
+
 def test_check_constraints_handles_constraints_on_design_and_config() -> None:
     @constraint(categories=THEORY, criticality=Criticality.Warning)
     def volume_fraction_bound(design: NDArray, volfrac: float) -> None:
