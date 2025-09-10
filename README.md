@@ -5,6 +5,7 @@
 
 [![Python](https://img.shields.io/pypi/pyversions/engibench.svg)](https://badge.fury.io/py/engibench)
 ![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
+[![arXiv](https://img.shields.io/badge/arXiv-2508.00831-b31b1b.svg)](https://arxiv.org/abs/2508.00831)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![code style: Ruff](
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](
