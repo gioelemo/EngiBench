@@ -99,7 +99,7 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
     if _um is None:
         _um = np.zeros((x_elements * y_elements * 2,))
 
-    left_col_indices, top_row_indices, right_col_indices, bottom_row_indices = get_res_bounds(x_elements, y_elements)
+    _left_col_indices, _top_row_indices, right_col_indices, _bottom_row_indices = get_res_bounds(x_elements, y_elements)
 
     structural_bcs_img: npt.NDArray[np.float64] = np.zeros((x_elements * y_elements,))
     structural_bcs_img[structural_bcs // 2] = 1

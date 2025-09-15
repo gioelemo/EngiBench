@@ -19,7 +19,7 @@ def run_problem(config: dict[str, Any], fig_path: str, *, simulate: bool, **opti
     """Create and optimize a single problem."""
     problem = Photonics2D(**config)
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
-    final_design, obj_trajectory = problem.optimize(start_design, **optimize_args)
+    final_design, _obj_trajectory = problem.optimize(start_design, **optimize_args)
     fig = problem.render(design=final_design, config=optimize_args)
     fig.savefig(fig_path)
     if simulate:
@@ -64,7 +64,7 @@ def render_local(target_problem: Any, opt_results: list[dict], fig_path: str) ->
     if not os.path.exists(fig_path):
         os.makedirs(fig_path)
     for _i, result in enumerate(opt_results):
-        final_design, obj_trajectory = result["results"]
+        final_design, _obj_trajectory = result["results"]
         problem = target_problem(result["problem_args"])
         fig = problem.render(design=final_design, config=result["simulate_args"])
         fig.savefig(fig_path + f"/final_design_{_i}.png")
