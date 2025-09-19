@@ -474,12 +474,14 @@ document.write(`
 
 <div class="viewcode-block" id="run">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.run">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
     <span class="n">command</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
     <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a command in a container using the selected runtime.</span>
 
@@ -489,13 +491,14 @@ document.write(`
 <span class="sd">        mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">        env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">        name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">        sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">RUNTIME</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running.&quot;</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mounts</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mounts</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">sync_uid</span><span class="o">=</span><span class="n">sync_uid</span><span class="p">)</span>
         <span class="n">result</span><span class="o">.</span><span class="n">check_returncode</span><span class="p">()</span>
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Container command failed with exit code </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="s2">Command: </span><span class="si">{</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">Output: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">output</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;No output&#39;</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -547,13 +550,15 @@ document.write(`
 <div class="viewcode-block" id="ContainerRuntime.run">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.ContainerRuntime.run">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">command</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
 
@@ -563,6 +568,7 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Must be implemented by a subclass&quot;</span><span class="p">)</span></div>
 </div>
@@ -625,13 +631,15 @@ document.write(`
         <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">command</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
 
@@ -641,10 +649,10 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">name_args</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;--name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">]</span>
-        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span>
-        <span class="n">env_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">user_args</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_user_args</span><span class="p">()</span> <span class="k">if</span> <span class="n">sync_uid</span> <span class="k">else</span> <span class="p">()</span>
 
         <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="p">[</span>
@@ -652,13 +660,18 @@ document.write(`
                 <span class="s2">&quot;run&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--rm&quot;</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">name_args</span><span class="p">,</span>
-                <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">mount_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
-                <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">env_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
+                <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
+                <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
+                <span class="o">*</span><span class="n">user_args</span><span class="p">,</span>
                 <span class="n">image</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">command</span><span class="p">,</span>
             <span class="p">],</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_user_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;--user&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span></div>
 
 
 
@@ -688,7 +701,11 @@ document.write(`
                 <span class="o">==</span> <span class="mi">0</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">False</span></div>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_user_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;--userns=keep-id&quot;</span><span class="p">,</span> <span class="s2">&quot;--user&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span></div>
 
 
 
@@ -751,13 +768,15 @@ document.write(`
         <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">docker_uri</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>  <span class="c1"># noqa: PLR0913</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">command</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
 
@@ -767,6 +786,7 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Set Apptainer environment variables</span>
         <span class="bp">cls</span><span class="o">.</span><span class="n">_set_apptainer_env</span><span class="p">()</span>
@@ -774,23 +794,27 @@ document.write(`
         <span class="c1"># Get sif filename</span>
         <span class="n">sif_image</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">sif_filename</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-        <span class="c1"># Reconstruct mount and env args</span>
-        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span>
-        <span class="n">env_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-
         <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
                 <span class="s2">&quot;run&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;--compat&quot;</span><span class="p">,</span>
-                <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">mount_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
-                <span class="o">*</span><span class="p">(</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">env_args</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">),</span>
+                <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
+                <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
                 <span class="n">sif_image</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">command</span><span class="p">,</span>
             <span class="p">],</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_env_args</span><span class="p">(</span><span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
 
 
 <span class="n">RUNTIMES</span> <span class="o">=</span> <span class="p">[</span>
