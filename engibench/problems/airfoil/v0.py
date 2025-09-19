@@ -318,6 +318,7 @@ class Airfoil(Problem[DesignType]):
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                sync_uid=True,
             )
 
         except Exception as e:
@@ -436,6 +437,7 @@ class Airfoil(Problem[DesignType]):
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                sync_uid=True,
             )
         except Exception as e:
             raise RuntimeError(
@@ -513,6 +515,7 @@ class Airfoil(Problem[DesignType]):
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                sync_uid=True,
             )
         except Exception as e:
             raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e
