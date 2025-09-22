@@ -40,6 +40,8 @@
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'problems/thermoelastic2d';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
@@ -512,11 +514,12 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boundary-conditions">Boundary Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
@@ -548,10 +551,10 @@ document.write(`
 </td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>fixed_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f62da4df550&gt;</p>
-<p>force_elements_x: &lt;dataclasses._MISSING_TYPE object at 0x7f62da4df550&gt;</p>
-<p>force_elements_y: &lt;dataclasses._MISSING_TYPE object at 0x7f62da4df550&gt;</p>
-<p>heatsink_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f62da4df550&gt;</p>
+<td><p>fixed_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f9d0ad631d0&gt;</p>
+<p>force_elements_x: &lt;dataclasses._MISSING_TYPE object at 0x7f9d0ad631d0&gt;</p>
+<p>force_elements_y: &lt;dataclasses._MISSING_TYPE object at 0x7f9d0ad631d0&gt;</p>
+<p>heatsink_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f9d0ad631d0&gt;</p>
 <p>volfrac: 0.3</p>
 <p>rmin: 1.1</p>
 <p>weight: 0.5</p>
@@ -571,22 +574,27 @@ document.write(`
 <h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
 <p>This is 2D topology optimization problem for minimizing weakly coupled thermo-elastic compliance subject to boundary conditions and a volume fraction constraint.</p>
 </section>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>As articulated in their respective sections, both the Beams2D and HeatConduction2D problems found in the EngiBench library are fundamental engineering design problems that have historically served as benchmarks for the development and testing of optimization methods.
+While their relevance is supported by needs in real engineering design scenarios (aerospace, automotive, consumer electronics, etc…), their mono-domain nature ignores the reality that coupling between domains exists, and should be accounted for in scenarios where performance in one domain significantly impacts performance in another.
+To address this distinction, a multi-physics topology optimization problem is developed that captures the coupling between structural and thermal domains.</p>
+</section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>The design space is represented by a 2D tensor of continuous design variables in the range [0, 1] that represent the material density at each voxel in the design space.</p>
+<p>This multi-physics topology optimization problem is governed by linear elasticity and steady-state heat conduction with a one-way coupling from the thermal domain to the elastic domain.
+The problem is defined over a square 2D domain, where load elements and support elements are placed along the boundary to define a unique elastic condition.
+Similarly, heatsink elements are placed along the boundary to define a unique thermal condition.
+The design space is then defined by a 2D array representing density values (parameterized by DesignSpace = [0,1]^{nelx x nely}, where nelx and nely denote the x and y dimensions).</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
-<p>The objectives are defined and indexed as follows:
-0. <code class="docutils literal notranslate"><span class="pre">structural_compliance</span></code>: Structural compliance to minimize.</p>
-<ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">thermal_compliance</span></code>: Thermal compliance to minimize.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction</span></code>: Volume fraction error to minimize.</p></li>
-</ol>
+<p>The objective of this problem is to minimize total compliance C under a volume fraction constraint V by placing a thermally conductive material.
+Total compliance is defined as the sum of thermal compliance and structural compliance.</p>
 </section>
-<section id="boundary-conditions">
-<h2>Boundary Conditions<a class="headerlink" href="#boundary-conditions" title="Link to this heading">#</a></h2>
-<p>Creating a problem formulation requires defining a python dict with the following info:</p>
+<section id="conditions">
+<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
+<p>Problem conditions are defined by creating a python dict with the following info:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Encodes a binary NxN matrix of the structurally fixed elements in the domain.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.</p></li>
@@ -597,10 +605,20 @@ document.write(`
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Allows one to control which objective is optimized for. 1.0 Is pure structural optimization, while 0.0 is pure thermal optimization.</p></li>
 </ul>
 </section>
+<section id="simulator">
+<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
+<p>The simulation code is based on a Python adaptation of the popular 88-line topology optimization code, modified to handle the thermal domain in addition to thermal-elastic coupling.
+Optimization is conducted by reformulating the integer optimization problem as a continuous one (leveraging a SIMP approach), where a density filtering approach is used to prevent checkerboard-like artifacts.
+The optimization process itself operates by calculating the sensitivities of the design variables with respect to total compliance (done efficiently using the Adjoint method), calculating the sensitivities of the design variables with respect to the constraint value, and then updating the design variables by solving a convex-linear subproblem and taking a small step (using the method of moving asymptotes).
+The optimization loop terminates when either an upper bound of the number of iterations has been reached or if the magnitude of the gradient update is below some threshold.</p>
+</section>
 <section id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
 <p>The dataset linked to this problem is on huggingface <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/thermoelastic_2d_v0">Hugging Face Datasets Hub</a>.
-Relevant datapoint fields include:</p>
+This dataset contains a set of 1000 optimized thermoelastic designs in a 64x64 domain, where each design is optimized for a unique set of conditions.
+Each datapoint’s conditions are randomly generated by arbitrarily placing: a single loaded element along the bottom boundary, two fixed elements (fixed in both the x and y direction) along the left and top boundary, and heatsink elements along the right boundary.
+Furthermore, values for the volume fraction constraint are randomly selected in the range <span class="math notranslate nohighlight">\([0.2, 0.5]\)</span>.</p>
+<p>Relevant datapoint fields include:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">optimal_design</span></code>: An optimized design for the set of boundary conditions</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">strain</span></code>: The strain field for the initial uniform design</p></li>
@@ -618,18 +636,6 @@ Relevant datapoint fields include:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: The filter size used in the optimization routine</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: The domain weighting used in the optimization routine</p></li>
 </ul>
-<p>The dataset is generated by enumerating different boundary condition components, and taking the cartesian product of these components. The following components are enumerated:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: 2 fixed elements that can lie anywhere on the left or top boundary</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: 1 force element that can lie anywhere on the right boundary</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: 1 force element that can lie anywhere on the bottom boundary</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: N heat sink elements that can lie anywhere on the left or top boundary (N is also enumerated to have different sizes)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: The volume fraction target of the optimized design</p></li>
-</ul>
-</section>
-<section id="simulator">
-<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
-<p>The evaluation code models the problem as a weakly coupled thermo-elastic problem. The code is written in pure python, and the evaluation is done in a single process.</p>
 </section>
 <section id="lead">
 <h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
@@ -683,11 +689,12 @@ Relevant datapoint fields include:</p>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#boundary-conditions">Boundary Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
