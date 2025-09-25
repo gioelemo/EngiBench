@@ -202,11 +202,16 @@ class Docker(ContainerRuntime):
             ],
             check=False,
             capture_output=True,
+            env=cls._env(),
         )
 
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:
         return ("--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        return None
 
 
 class Podman(Docker):
@@ -238,6 +243,16 @@ class Podman(Docker):
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:
         return ("--userns=keep-id", "--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        # podman needs to have pasta in the PATH variable to configure
+        # network namespaces
+        pasta_executable = shutil.which("pasta")
+        if pasta_executable is None:
+            msg = "pasta executable not available. This is needed for podman to work properly"
+            raise RuntimeError(msg)
+        return {"PATH": os.path.dirname(pasta_executable)}
 
 
 DOCKER_PREFIX = "docker://"
