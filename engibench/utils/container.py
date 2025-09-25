@@ -337,6 +337,7 @@ class Apptainer(ContainerRuntime):
 
         # Get sif filename
         sif_image = cls.sif_filename(image)
+        cls.pull(image)
 
         return subprocess.run(
             [
