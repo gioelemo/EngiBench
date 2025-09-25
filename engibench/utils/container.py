@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -46,7 +47,10 @@ def run(  # noqa: PLR0913
         result = RUNTIME.run(command, image, mounts, env, name, sync_uid=sync_uid)
         result.check_returncode()
     except subprocess.CalledProcessError as e:
-        msg = f"Container command failed with exit code {e.returncode}:\nCommand: {' '.join(command)}\nOutput: {e.output.decode() if e.output else 'No output'}"
+        msg = f"""Container command failed with exit code {e.returncode}:
+Command: {" ".join(command)}
+stdout: {result.stdout.decode() if result.stdout else "No output"}
+stderr: {result.stderr.decode() if result.stderr else "No output"}"""
         raise RuntimeError(msg) from e
 
 
@@ -197,6 +201,7 @@ class Docker(ContainerRuntime):
                 *command,
             ],
             check=False,
+            capture_output=True,
         )
 
     @classmethod
