@@ -513,24 +513,22 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constraints">Constraints</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#theoretical-constraints-error">Theoretical constraints (error)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#theoretical-constraints-warning">Theoretical constraints (warning)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-constraints-error">Implementation constraints (error)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-constraints-warning">Implementation constraints (warning)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#known-issues-and-workarounds">Known Issues and Workarounds</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wip">WIP</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -544,14 +542,52 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="airfoil">
 <h1>Airfoil<a class="headerlink" href="#airfoil" title="Link to this heading">#</a></h1>
+<a class="reference internal image-reference" href="../../_images/airfoil.png"><img alt="../../_images/airfoil.png" class="align-center" src="../../_images/airfoil.png" style="width: 450px;" />
+</a>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p>Version</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>Design space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Dict('angle_of_attack':</span> <span class="pre">Box(0.0,</span> <span class="pre">10.0,</span> <span class="pre">(1,),</span> <span class="pre">float32),</span> <span class="pre">'coords':</span> <span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(2,</span> <span class="pre">192),</span> <span class="pre">float32))</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Objectives</p></td>
+<td><p>cd: ↓</p></td>
+</tr>
+<tr class="row-even"><td><p>Conditions</p></td>
+<td><p>mach: 0.8</p>
+<p>reynolds: 1000000.0</p>
+<p>area_initial: None</p>
+<p>area_ratio_min: 0.7</p>
+<p>cl_target: 0.5</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Dataset</p></td>
+<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/airfoil_v0">IDEALLab/airfoil_v0</a></p></td>
+</tr>
+<tr class="row-even"><td><p>Container</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mdolab/public:u22-gcc-ompi-stable</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Import</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.airfoil.v0</span> <span class="pre">import</span> <span class="pre">Airfoil</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Airfoil 2D shape optimization problem.</p>
+<section id="problem-description">
+<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
+<p>This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the <a class="reference external" href="https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/">MACH-Aero</a> simulator that computes the lift and drag coefficients of the airfoil.</p>
+</section>
 <section id="motivation">
 <h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
 <p>The field of aerodynamics has always been a challenging testbed for engineering problems. In fact, many optimization and design methodologies were originally developed or perfected specifically for aerodynamic design applications [1]. Part of the reason for this is that even relatively simple aerodynamics problems can be complex, with slight changes in design parameters typically resulting in large changes in performance. In addition, the potential applications derived from solving these problems are quite practical, ranging from fixed-wing aircraft to hydrofoils used in ships, and wind turbine blades [2]. Here, we present Airfoil, a simple yet sufficiently realistic 2-dimensional aerodynamics benchmark problem.</p>
 <p>The airfoil problem presents a simple aerodynamic shape optimization routine based on Reynolds’ averaged Navier-Stokes equations (RANS). In this problem, the solver attempts to indirectly morph the initial geometry to achieve a certain prescribed lift coefficient (which could correspond to a hypothetical loading requirement) while minimizing the amount of drag generated by the design.</p>
 </section>
 <section id="design-space">
-<h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>The design space is represented as a tuple containing 192 2D points describing the airfoil coordinates and a scalar describing the rotation of the coordinates relative to the chord line needed to achieve a certain incoming direction of flow (the angle of attack, α):</p>
+<h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>The design space is represented as a tuple containing 192 2D points describing the airfoil coordinates and a scalar describing the rotation of the coordinates relative to the chord line needed to achieve a certain incoming direction of flow (the angle of attack, alpha):</p>
 <div class="math notranslate nohighlight">
 \[\text{Design Space} = \left\{\left(x, y\right)^{192}, \alpha \right\}\]</div>
 <p>This specific coordinate parameterization (192) and rotational scalar design parameterization have been previously used in [3]. Another benchmark airfoil optimization problem, mentioned in [4] (Transonic RAE2822), was also used to internally validate the meshing and design parameterization. All training data, as well as the original and complete formulation of this problem can be found in [5].</p>
@@ -624,88 +660,49 @@ document.write(`
 </tbody>
 </table>
 </div>
-<p>Instead of directly parameterizing all (192) coordinates of the airfoil, a smaller set of 20 control points is used. The collection of these control points forms what is known as a free-form deformation cage (FFD). Changes in the values of the FFD cage smoothly deform the underlying coordinates. In the airfoil problem, modifications to the geometry are parameterized by changes in the FFD control point y coordinates, <span class="math notranslate nohighlight">\(\Delta y_i\)</span>. Figure 1a shows how these changes in the i-th FFD y coordinate in the n-th optimization iteration results in a smooth morphing of the underlying coordinates in the next n+1-th iteration (in red). Figure 1b shows a sample FFD cage for an airfoil from the dataset, with the 20 different FFD <span class="math notranslate nohighlight">\(\Delta y_i\)</span> design variables (in blue).</p>
-<p><strong>Figure 1: Airfoil FFD design variables</strong></p>
-<ul class="simple">
-<li><p>(a) Sample airfoil FFD cage</p></li>
-<li><p>(b) FFD cage morphing process</p></li>
-</ul>
+<p>Instead of directly parameterizing all (192) coordinates of the airfoil, a smaller set of 20 control points is used. The collection of these control points forms what is known as a free-form deformation cage (FFD). Changes in the values of the FFD cage smoothly deform the underlying coordinates. In the airfoil problem, modifications to the geometry are parameterized by changes in the FFD control point y coordinates, <span class="math notranslate nohighlight">\(\Delta y_i\)</span>. See the EngiBench paper for more details.</p>
 <p>Note that, for simplicity, in this definition we have omitted certain constraints pertaining to thickness as well as those concerned with the shearing of the leading (front) and trailing (tail end) edges.</p>
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>The conditions for the airfoil problem are described in Table 2.</p>
-<p><strong>Table 2: Airfoil Conditions</strong></p>
-<div class="pst-scrollable-table-container"><table class="table">
-<thead>
-<tr class="row-odd"><th class="head"><p>Category</p></th>
-<th class="head"><p>Condition</p></th>
-<th class="head"><p>Description</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><strong>Flow Condition</strong></p></td>
-<td><p>M</p></td>
-<td><p>Mach number</p></td>
-</tr>
-<tr class="row-odd"><td><p></p></td>
-<td><p>Re</p></td>
-<td><p>Reynolds number</p></td>
-</tr>
-<tr class="row-even"><td><p><strong>Constraint</strong></p></td>
-<td><p><span class="math notranslate nohighlight">\(c_l^{\text{con}}\)</span></p></td>
-<td><p>Coefficient of lift</p></td>
-</tr>
-<tr class="row-odd"><td><p></p></td>
-<td><p><span class="math notranslate nohighlight">\(\left( \frac{A}{A_{\text{init}}} \right)_{\text{min}}\)</span></p></td>
-<td><p>Minimum area fraction</p></td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>The conditions are defined by the following parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mach</span></code>: Mach number.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reynolds</span></code>: Reynolds number.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_ratio_min</span></code>: Minimum area ratio (ratio relative to initial area) constraint.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_initial</span></code>: Initial area.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cl_target</span></code>: Target lift coefficient to satisfy equality constraint.</p></li>
+</ul>
 <p>Note that while it may be possible to constrain the design’s area ahead of time, this is not typically possible for the prescribed coefficient of lift. In addition it may not be possible to achieve certain combinations of prescribed area and coefficient of lift constraints.</p>
-</section>
-<section id="constraints">
-<h2>Constraints<a class="headerlink" href="#constraints" title="Link to this heading">#</a></h2>
-<section id="theoretical-constraints-error">
-<h3>Theoretical constraints (error)<a class="headerlink" href="#theoretical-constraints-error" title="Link to this heading">#</a></h3>
-<div class="math notranslate nohighlight">
-\[\begin{split}\begin{aligned}
-\text{Design Space} &amp;\in \left\{\left(x, y\right)^N, \alpha \right\}\\
-\alpha &amp;\in [0, 10]\\
-\left( \frac{A}{A_{\text{init}}} \right)_{\text{min}} &amp;\in [0, 1.2)\\
-\end{aligned}\end{split}\]</div>
-</section>
-<section id="theoretical-constraints-warning">
-<h3>Theoretical constraints (warning)<a class="headerlink" href="#theoretical-constraints-warning" title="Link to this heading">#</a></h3>
-<div class="math notranslate nohighlight">
-\[\left( \frac{A}{A_{\text{init}}} \right) \in \left[\left( \frac{A}{A_{\text{init}}} \right)_{\text{min}} , 1.2\right)\]</div>
-</section>
-<section id="implementation-constraints-error">
-<h3>Implementation constraints (error)<a class="headerlink" href="#implementation-constraints-error" title="Link to this heading">#</a></h3>
-<div class="math notranslate nohighlight">
-\[\begin{split}\begin{aligned}
-M &amp;\in (0, \infty)\\
-Re &amp;\in (0, \infty)\\
-\end{aligned}\end{split}\]</div>
-</section>
-<section id="implementation-constraints-warning">
-<h3>Implementation constraints (warning)<a class="headerlink" href="#implementation-constraints-warning" title="Link to this heading">#</a></h3>
-<div class="math notranslate nohighlight">
-\[\begin{split}\begin{aligned}
-M &amp;\in [0.1, 1.0]\\
-Re &amp;\in [10^5, 10^9]\\
-\end{aligned}\end{split}\]</div>
-</section>
 </section>
 <section id="simulator">
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
 <p>All simulations used the open source and differentiable ADflow solver [6,7] as part of the MACH-Aero framework. ADflow was configured to run RANS simulations with the Spalart-Allmaras model for turbulence effects. Furthermore, within ADflow, the approximate Newton-Krylov method was used to improve convergence and robustness [8]. pyHyp, a hyperbolic mesh generator [9] was used to generate volume meshes automatically. For the optimization problem itself, we use the sequential least squares programming algorithm as implemented in the sparse optimization framework, pyOptSparse [10]. For geometry parameterization and deformation, module, we used the pyGeo and IDWarp frameworks [11,9].</p>
+<p>You can install gcc and gfortran on your system with your package manager.</p>
+<ul class="simple">
+<li><p>On Ubuntu: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">gcc</span> <span class="pre">gfortran</span></code></p></li>
+<li><p>On MacOS: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">gcc</span> <span class="pre">gfortran</span></code></p></li>
+<li><p>On Windows (WSL): <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">build-essential</span></code></p></li>
+</ul>
 </section>
 <section id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
-<p>A dataset, originally described in [5], is integrated within our framework. The limits for the parameters in the data set are listed in Table 3. 1400 parameter combinations were chosen using Latin hypercube sampling (LHS) in the 4-dimensional parameter space. The training, testing and validation sets were randomly split into 748, 140, and 47 airfoil samples, respectively. Finally, Table 4 describes each variable in the data set available through the EngiBench API.</p>
-<p><strong>Table 3: Sampled Parameter Bounds</strong></p>
+<section id="v0">
+<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
+<p>The dataset linked to this problem is hosted on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/airfoil_v0">Hugging Face Datasets Hub</a>.</p>
+<section id="fields">
+<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
+<p>The dataset contains optimal design, conditions, objectives and these additional fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">initial_design</span></code>: Design before the adjoint optimization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cl_con_violation</span></code>: # Constraint violation for coefficient of lift.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_ratio</span></code>: # Area ratio for given design.</p></li>
+</ul>
+</section>
+<section id="creation-method">
+<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
+<p>A dataset, originally described in [5], is integrated within our framework. The limits for the parameters in the data set are listed in Table 2. 1400 parameter combinations were chosen using Latin hypercube sampling (LHS) in the 4-dimensional parameter space. The training, testing and validation sets were randomly split into 748, 140, and 47 airfoil samples, respectively. Finally, Table 3 describes each variable in the data set available through the EngiBench API.</p>
+<p><strong>Table 2: Sampled Parameter Bounds</strong></p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Category</p></th>
@@ -743,7 +740,7 @@ Re &amp;\in [10^5, 10^9]\\
 </tbody>
 </table>
 </div>
-<p><strong>Table 4: Airfoil dataset variables</strong></p>
+<p><strong>Table 3: Airfoil dataset variables</strong></p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Category</p></th>
@@ -788,14 +785,20 @@ Re &amp;\in [10^5, 10^9]\\
 </table>
 </div>
 </section>
-<section id="known-issues-and-workarounds">
-<h2>Known Issues and Workarounds<a class="headerlink" href="#known-issues-and-workarounds" title="Link to this heading">#</a></h2>
-<section id="wip">
-<h3>WIP<a class="headerlink" href="#wip" title="Link to this heading">#</a></h3>
 </section>
 </section>
 <section id="references">
 <h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
+<p>If you use this problem in your research, please cite the following paper:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@inproceedings</span><span class="p">{</span><span class="nl">diniz2024optimizing</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Diniz, C. and Fuge, M.}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Optimizing Diffusion to Diffuse Optimal Designs}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">booktitle</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{AIAA SCITECH 2024 Forum}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2024}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">doi</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{10.2514/6.2024-2013}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 <p><a id="1">[1]</a>
 Martins, J. R. R. A. and Ning, A. (2022).
 Engineering Design Optimization.
@@ -826,7 +829,7 @@ Effective Adjoint Approaches for Computational Fluid Dynamics.
 Progress in Aerospace Sciences, 110, 100542.</p>
 <p><a id="8">[8]</a>
 Yildirim, A., Kenway, G. K. W., Mader, C. A., and Martins, J. R. R. A. (2019).
-A Jacobian-free approximate Newton–Krylov startup strategy for RANS simulations.
+A Jacobian-free approximate Newton-Krylov startup strategy for RANS simulations.
 Journal of Computational Physics, 397, 108741.</p>
 <p><a id="9">[9]</a>
 Secco, N., Kenway, G. K. W., He, P., Mader, C. A., and Martins, J. R. R. A. (2021).
@@ -840,6 +843,10 @@ Journal of Open Source Software, 5(54), 2564.</p>
 Hajdik, H. M., Yildirim, A., Wu, N., Brelje, B. J., Seraj, S., Mangano, M., Anibal, J. L., Jonsson, E., Adler, E. J., Mader, C. A., Kenway, G. K. W., and Martins, J. R. R. A. (2023).
 pyGeo: A geometry package for multidisciplinary design optimization.
 Journal of Open Source Software, 8(87), 5319.</p>
+</section>
+<section id="lead">
+<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
+<p>Cashen Diniz &#64;cashend</p>
 </section>
 </section>
 
@@ -888,24 +895,22 @@ Journal of Open Source Software, 8(87), 5319.</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constraints">Constraints</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#theoretical-constraints-error">Theoretical constraints (error)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#theoretical-constraints-warning">Theoretical constraints (warning)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-constraints-error">Implementation constraints (error)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#implementation-constraints-warning">Implementation constraints (warning)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#known-issues-and-workarounds">Known Issues and Workarounds</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wip">WIP</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 
