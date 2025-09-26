@@ -30,7 +30,7 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
     problem = Airfoil()
 
     # Set simulation ID
-    sim_id = configuration_id+1
+    sim_id = configuration_id + 1
 
     # Create unique simulation directory
     problem.reset(seed=sim_id, cleanup=False)

@@ -1,5 +1,9 @@
+"""Dataset Generation for Airfoil Problem via SLURM.
+
+This script generates a dataset for the Airfoil problem using the SLURM API
+"""
+
 from argparse import ArgumentParser
-import sys
 
 from datasets import load_dataset
 import numpy as np
@@ -8,14 +12,14 @@ from scipy.stats import qmc
 from engibench.problems.airfoil.simulation_jobs import simulate_slurm
 from engibench.utils import slurm
 
-print(f"Python version: {sys.version}")
 
 def calculate_runtime(group_size, minutes_per_sim=5):
-    # Calculate runtime based on group size and (rough) estimate of minutes per simulation
+    """Calculate runtime based on group size and (rough) estimate of minutes per simulation."""
     total_minutes = group_size * minutes_per_sim
     hours = total_minutes // 60
     minutes = total_minutes % 60
     return f"{hours:02d}:{minutes:02d}:00"
+
 
 if __name__ == "__main__":
     """Dataset Generation, Simulation, and Rendering for Airfoil Problem via SLURM.
@@ -85,9 +89,14 @@ if __name__ == "__main__":
 
     # Load airfoil designs from HF Database
     ds = load_dataset("IDEALLab/airfoil_v0")
-    designs = ds["train"]["initial_design"]+ds["train"]["optimal_design"]+\
-              ds["val"]["initial_design"]+ds["val"]["optimal_design"]+\
-              ds["test"]["initial_design"]+ds["test"]["optimal_design"]
+    designs = (
+        ds["train"]["initial_design"]
+        + ds["train"]["optimal_design"]
+        + ds["val"]["initial_design"]
+        + ds["val"]["optimal_design"]
+        + ds["test"]["initial_design"]
+        + ds["test"]["optimal_design"]
+    )
 
     # Use specified number of designs
     designs = designs[:n_designs]
@@ -95,7 +104,7 @@ if __name__ == "__main__":
     # Generate LHS samples
     rng = np.random.default_rng(seed=42)  # Optional seed for reproducibility
     sampler = qmc.LatinHypercube(d=2, seed=rng)
-    samples = sampler.random(n=n_designs*n_flows)  # n samples needed
+    samples = sampler.random(n=n_designs * n_flows)  # n samples needed
 
     # Scale to your flow domain
     bounds = np.array([[Ma_min, Ma_max], [Re_min, Re_max]])
@@ -108,17 +117,14 @@ if __name__ == "__main__":
     simulate_configs_designs = []
     for i, design in enumerate(designs):
         for j in range(n_flows):
-            ma = mach_values[i*n_flows + j]
-            re = reynolds_values[i*n_flows + j]
-            for k, alpha in enumerate(rng.uniform(low=aoa_min, high=aoa_max, size=n_aoas)):
+            ma = mach_values[i * n_flows + j]
+            re = reynolds_values[i * n_flows + j]
+            for alpha in rng.uniform(low=aoa_min, high=aoa_max, size=n_aoas):
                 problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
                 config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
                 config["design"] = design["coords"]
                 simulate_configs_designs.append(config)
                 config_id += 1
-
-    # Randomly shuffle all simulation configurations
-    simulate_configs_designs = np.random.permutation(simulate_configs_designs).tolist()
 
     print(f"Generated {len(simulate_configs_designs)} configurations for simulation.")
 
@@ -137,7 +143,9 @@ if __name__ == "__main__":
 
     submitted_jobs = []
     for ibatch in range(int(n_sbatch_maps)):
-        sim_batch_configs = simulate_configs_designs[ibatch * group_size * n_slurm_array: (ibatch + 1) * group_size * n_slurm_array]
+        sim_batch_configs = simulate_configs_designs[
+            ibatch * group_size * n_slurm_array : (ibatch + 1) * group_size * n_slurm_array
+        ]
         print(len(sim_batch_configs))
         print(f"Submitting batch {ibatch + 1}/{int(n_sbatch_maps)}")
 
@@ -146,7 +154,7 @@ if __name__ == "__main__":
             args=sim_batch_configs,
             slurm_args=slurm_config,
             group_size=group_size,  # Number of jobs to batch in sequence to reduce job array size
-            work_dir="scratch"
+            work_dir="scratch",
         )
 
         # Save the job array reference
