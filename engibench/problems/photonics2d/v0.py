@@ -468,7 +468,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # --- Initial Simulation for first OptiStep history (IOG calculation) ---
         print("Optimize: Calculating initial design...")  # Keep this info message
-        epsr_init, ez1_init, ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(
+        _epsr_init, ez1_init, ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(
             starting_point, conditions
         )
 
@@ -631,7 +631,7 @@ class Photonics2D(Problem[npt.NDArray]):
         print("Rendering design under the following conditions:")
         pprint.pp(conditions)
         # Use run_fdfd but ignore most outputs, just need epsr, ez1, ez2
-        epsr, ez1, ez2, source1, source2, probe1, probe2 = self._run_fdfd(design, conditions)
+        epsr, ez1, ez2, _source1, _source2, probe1, probe2 = self._run_fdfd(design, conditions)
 
         overlap1 = mode_overlap(ez1, probe1)
         overlap2 = mode_overlap(ez2, probe2)

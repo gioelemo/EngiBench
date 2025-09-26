@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -19,12 +20,14 @@ def pull(image: str) -> None:
     RUNTIME.pull(image)
 
 
-def run(
+def run(  # noqa: PLR0913
     command: list[str],
     image: str,
     mounts: Sequence[tuple[str, str]] = (),
     env: dict[str, str] | None = None,
     name: str | None = None,
+    *,
+    sync_uid: bool = False,
 ) -> None:
     """Run a command in a container using the selected runtime.
 
@@ -34,16 +37,20 @@ def run(
         mounts: Pairs of host folder and destination folder inside the container.
         env: Mapping of environment variable names and values to set inside the container.
         name: Optional name for the container (not supported by all runtimes).
+        sync_uid: Use the uid of the current process as uid inside the container.
     """
     if RUNTIME is None:
         msg = "No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running."
         raise FileNotFoundError(msg)
 
     try:
-        result = RUNTIME.run(command, image, mounts, env, name)
+        result = RUNTIME.run(command, image, mounts, env, name, sync_uid=sync_uid)
         result.check_returncode()
     except subprocess.CalledProcessError as e:
-        msg = f"Container command failed with exit code {e.returncode}:\nCommand: {' '.join(command)}\nOutput: {e.output.decode() if e.output else 'No output'}"
+        msg = f"""Container command failed with exit code {e.returncode}:
+Command: {" ".join(command)}
+stdout: {result.stdout.decode() if result.stdout else "No output"}
+stderr: {result.stderr.decode() if result.stderr else "No output"}"""
         raise RuntimeError(msg) from e
 
 
@@ -81,13 +88,15 @@ class ContainerRuntime:
         raise NotImplementedError("Must be implemented by a subclass")
 
     @classmethod
-    def run(
+    def run(  # noqa: PLR0913
         cls,
         command: list[str],
         image: str,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
+        *,
+        sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -97,6 +106,7 @@ class ContainerRuntime:
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            sync_uid: Use the uid of the current process as uid inside the container.
         """
         raise NotImplementedError("Must be implemented by a subclass")
 
@@ -155,13 +165,15 @@ class Docker(ContainerRuntime):
         subprocess.run([cls.executable, "pull", image], check=True)
 
     @classmethod
-    def run(
+    def run(  # noqa: PLR0913
         cls,
         command: list[str],
         image: str,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
+        *,
+        sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -171,10 +183,10 @@ class Docker(ContainerRuntime):
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            sync_uid: Use the uid of the current process as uid inside the container.
         """
         name_args = [] if name is None else ["--name", name]
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
-        env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
+        user_args = cls._user_args() if sync_uid else ()
 
         return subprocess.run(
             [
@@ -182,13 +194,24 @@ class Docker(ContainerRuntime):
                 "run",
                 "--rm",
                 *name_args,
-                *(arg for args in mount_args for arg in args),
-                *(arg for args in env_args for arg in args),
+                *_mount_args(mounts),
+                *_env_args(env or {}),
+                *user_args,
                 image,
                 *command,
             ],
             check=False,
+            capture_output=True,
+            env=cls._env(),
         )
+
+    @classmethod
+    def _user_args(cls) -> tuple[str, ...]:
+        return ("--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        return None
 
 
 class Podman(Docker):
@@ -216,6 +239,20 @@ class Podman(Docker):
             )
         except FileNotFoundError:
             return False
+
+    @classmethod
+    def _user_args(cls) -> tuple[str, ...]:
+        return ("--userns=keep-id", "--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        # podman needs to have pasta in the PATH variable to configure
+        # network namespaces
+        pasta_executable = shutil.which("pasta")
+        if pasta_executable is None:
+            msg = "pasta executable not available. This is needed for podman to work properly"
+            raise RuntimeError(msg)
+        return {"PATH": os.path.dirname(pasta_executable)}
 
 
 DOCKER_PREFIX = "docker://"
@@ -275,13 +312,15 @@ class Apptainer(ContainerRuntime):
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
     @classmethod
-    def run(
+    def run(  # noqa: PLR0913
         cls,
         command: list[str],
         image: str,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
-        _name: str | None = None,
+        name: str | None = None,  # noqa: ARG003
+        *,
+        sync_uid: bool = False,  # noqa: ARG003
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -291,29 +330,35 @@ class Apptainer(ContainerRuntime):
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            sync_uid: Use the uid of the current process as uid inside the container.
         """
         # Set Apptainer environment variables
         cls._set_apptainer_env()
 
         # Get sif filename
         sif_image = cls.sif_filename(image)
-
-        # Reconstruct mount and env args
-        mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
-        env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
+        cls.pull(image)
 
         return subprocess.run(
             [
                 cls.executable,
                 "run",
                 "--compat",
-                *(arg for args in mount_args for arg in args),
-                *(arg for args in env_args for arg in args),
+                *_mount_args(mounts),
+                *_env_args(env or {}),
                 sif_image,
                 *command,
             ],
             check=False,
         )
+
+
+def _mount_args(mounts: Sequence[tuple[str, str]]) -> list[str]:
+    return [arg for args in (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts) for arg in args]
+
+
+def _env_args(env: dict[str, str]) -> list[str]:
+    return [arg for args in (["--env", f"{var}={value}"] for var, value in (env or {}).items()) for arg in args]
 
 
 RUNTIMES = [

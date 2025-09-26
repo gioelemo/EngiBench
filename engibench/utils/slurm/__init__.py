@@ -141,11 +141,12 @@ The pickled data is still accessible here: {reduced_path}
         run_sbatch(cmd, slurm_args=slurm_args, job_dependency=self.job_id, wait=True)
 
 
-def sbatch_map(
+def sbatch_map(  # noqa: PLR0913
     f: Callable[..., R],
     args: Iterable[dict[str, Any]],
     slurm_args: SlurmConfig | None = None,
     group_size: int = 1,
+    work_dir: str | None = None,
     *,
     wait: bool = False,
 ) -> SubmittedJobArray:
@@ -166,13 +167,14 @@ def sbatch_map(
     individual python instances running the `engibench.utils.slurm.run_job`
     standalone script.
     """
-    # Dump jobs:
-    work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
-    os.makedirs(os.path.join(work_dir, "jobs"))
-    os.makedirs(os.path.join(work_dir, "results"))
+    if work_dir is None:
+        work_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
+    os.makedirs(os.path.join(work_dir, "jobs"), exist_ok=True)
+    os.makedirs(os.path.join(work_dir, "results"), exist_ok=True)
     n_jobs = 0
     with open(os.path.join(work_dir, "jobs", "map_callback.pkl"), "wb") as stream:
         pickle.dump(MemorizeModule(f), stream)
+    # Dump jobs:
     for job_no, arg in enumerate(args):
         with open(os.path.join(work_dir, "jobs", f"{job_no}.pkl"), "wb") as stream:
             pickle.dump(MemorizeModule(arg), stream)

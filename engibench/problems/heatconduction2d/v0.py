@@ -255,8 +255,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]))
-        return np.array(self.dataset[dataset_split][design_key][rnd]), int(rnd)
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
     def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.

@@ -59,7 +59,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
     ## Simulator
     The simulator is ngSpice circuit simulator. You can download it based on your operating system:
-    - Windows: [https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/)
+    - Windows: [https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/)
     - MacOS: `brew install ngspice`
     - Linux: `sudo apt-get install ngspice`
 
