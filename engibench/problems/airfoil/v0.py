@@ -396,9 +396,6 @@ class Airfoil(Problem[DesignType]):
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
 
-        # docker pull image if not already pulled
-        if container.RUNTIME is not None and self.container_id is not None:
-            container.pull(self.container_id)
         # pre-process the design and run the simulation
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
@@ -465,9 +462,6 @@ class Airfoil(Problem[DesignType]):
         if isinstance(starting_point["angle_of_attack"], np.ndarray):
             starting_point["angle_of_attack"] = starting_point["angle_of_attack"][0]
 
-        # docker pull image if not already pulled
-        if container.RUNTIME is not None and self.container_id is not None:
-            container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
 
