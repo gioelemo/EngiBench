@@ -513,7 +513,10 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
@@ -576,29 +579,66 @@ document.write(`
 <h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
 <p>Optimize a 2D material distribution (<code class="docutils literal notranslate"><span class="pre">rho</span></code>) to function as a wavelength
 demultiplexer, routing wave with <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> to output 1 and <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> to output 2. The
-design variables represent material density which is converted to permittivity
+design variables represent material density that is converted to permittivity
 using filtering and projection.</p>
+<section id="motivation">
+<h3>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h3>
+<p>The optimization of photonic circuits in general, and multiplexers in particular, was
+one of the initial and most widely studied problems in the inverse design of
+electromagnetic/optical devices. In part, this is because multiplexer
+devices have several interesting properties that make them more difficult to create generative
+models of, compared to other problems in EngiBench. This includes the fact that, due to the wave
+properties of the physical phenomena there are usually multiple solutions with equivalent or
+similar performance, which results from shifting or inverting the phase profile of the
+electromagnetic wave. This adds complexity to the generative model in that the solution may not
+have a single unique global minimum. Another motivating factor for including this problem is the
+complexity of the structures/designs themselves: unlike in structural or thermal compliance
+problems, which lead to connected structures, the photonics solutions often involve several
+disconnected elements whose relative position and spacing is governed by the specific wavelengths
+it needs to demultiplex. This is a difficult prediction and generation task, compared to, e.g.,
+generating a connected beam structure. Thus, it acts as a good counterpoint to add to the library
+and provides a mechanism to benchmark generative algorithms that can perform well on both
+connected and disconnected design topologies.</p>
+</section>
 </section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>2D tensor <code class="docutils literal notranslate"><span class="pre">rho</span></code> (num_elems_x, num_elems_y) with values in [0, 1], representing material density.
-Stored as <code class="docutils literal notranslate"><span class="pre">design_space</span></code> (gymnasium.spaces.Box).</p>
+<p>This problem simulates a wavelength demultiplexer where the optimized device will direct an
+electromagnetic wave to one of two possible output ports depending on the wavelength/frequency of
+the incoming wave. Specifically, the demultiplexer targets two specific wavelengths (referred to
+<span class="math notranslate nohighlight">\(\lambda_1\)</span> and <span class="math notranslate nohighlight">\(\lambda_2\)</span> in the library), and the performance of the device is how well it can
+bend or direct the energy toward two specific locations in the device, as measured by how much of
+the electric field of each wavelength overlaps with the desired output port locations. The design
+space consists of a 2D array representing the presence of either a high or low permittivity,
+parameterized by <code class="docutils literal notranslate"><span class="pre">nelx</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span></code>, i.e., <span class="math notranslate nohighlight">\(\text{design_space} = [0,1]^{\text{nelx}\times \text{nely}}\)</span>.
+By default, the library uses a <span class="math notranslate nohighlight">\(120 \times 120\)</span> space, however, this can be modified to non-square
+design spaces by the user. Specifically, we use a 2D tensor <code class="docutils literal notranslate"><span class="pre">rho</span></code> (num_elems_x, num_elems_y) with
+values in [0, 1], representing material density. This is stored as <code class="docutils literal notranslate"><span class="pre">design_space</span></code> (gymnasium.spaces.Box).</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
-<ol class="arabic simple" start="0">
-<li><p><code class="docutils literal notranslate"><span class="pre">total_overlap</span></code>: Objective to maximize, defined as
-<code class="docutils literal notranslate"><span class="pre">overlap1</span> <span class="pre">*</span> <span class="pre">overlap2</span></code>. Higher is better. This is corresponds to
+<p>The main objective is to maximize the overlap of the electric field of the simulated wavelength at
+the target output location, with an optional penalty for the amount of material used (this penalty
+weight is set to a small default value (<span class="math notranslate nohighlight">\(1e^{-2}\)</span>) for consistency, but can be altered for advanced
+usage):
+0. <code class="docutils literal notranslate"><span class="pre">total_overlap</span></code>: Objective to maximize, defined as
+<code class="docutils literal notranslate"><span class="pre">overlap1</span> <span class="pre">*</span> <span class="pre">overlap2</span></code>. Higher is better. This corresponds to
 the overlap in the target electrical fields with the desired demultiplexing locations.
 Note that bot <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and <code class="docutils literal notranslate"><span class="pre">optimize</span></code> subtract a small material penalty
 (<code class="docutils literal notranslate"><span class="pre">total_overlap</span> <span class="pre">-</span> <span class="pre">penalty</span></code>) to avoid multiple equivalent local optima, but this penalty
-is small relative to the overlap objective.</p></li>
-</ol>
+is small relative to the overlap objective.</p>
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>These are designed as user-configurable parameters that alter the problem definition.
-Default problem parameters that can be overridden via the <code class="docutils literal notranslate"><span class="pre">config</span></code> dict:</p>
+<p>These are designed as user-configurable parameters that alter the problem definition. The
+conditions consist of the two input wavelengths to be demultiplexed –
+<span class="math notranslate nohighlight">\(\lambda_1\)</span> and <span class="math notranslate nohighlight">\(\lambda_2\)</span>, as well as a desired <code class="docutils literal notranslate"><span class="pre">blur_radius</span></code> (<span class="math notranslate nohighlight">\(r_{blur}\)</span>) parameter,
+which blurs (using a circular convolution) the pixelized design field for a chosen number of
+integer pixels\textemdash this blurring essentially creates a penalty on the minimum feature size
+of the design. The size of the device – expressed as <code class="docutils literal notranslate"><span class="pre">nelx</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span></code> – is also adjustable,
+and could be viewed as a possible condition for multi-resolution problems, but in practice, as with
+<code class="docutils literal notranslate"><span class="pre">Beams2D</span></code>, this is built into the problem definition since it produces a different dataset.</p>
+<p>Default problem parameters that can be overridden via the <code class="docutils literal notranslate"><span class="pre">config</span></code> dict:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: The first input wavelength in μm (default: 1.5 μm).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: The first input wavelength in μm (default: 1.3 μm).</p></li>
@@ -647,11 +687,26 @@ to the <code class="docutils literal notranslate"><span class="pre">opt_frames/<
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
 <p>The simulation uses the <code class="docutils literal notranslate"><span class="pre">ceviche</span></code> library’s Finite Difference Frequency Domain (FDFD)
 solver (<code class="docutils literal notranslate"><span class="pre">fdfd_ez</span></code>). Optimization uses <code class="docutils literal notranslate"><span class="pre">ceviche.optimizers.adam_optimize</span></code> with
-gradients computed via automatic differentiation (<code class="docutils literal notranslate"><span class="pre">autograd</span></code>).</p>
+gradients computed via automatic differentiation (<code class="docutils literal notranslate"><span class="pre">autograd</span></code>).
+The simulation code uses the \texttt{ceviche} library and specifically,
+the wave demultiplexer demonstration case provided by the
+[library authors](https://github.com/fancompute/workshop-invdesign/blob/master/04_Invdes_wdm_scheduling.ipynb}
+based on their related publication, which uses a similar formalism to an earlier demultiplexer
+paper by Piggott (2015). The optimization method is first-order and uses the Adam optimizer. Beyond
+the baseline implementation already available via <code class="docutils literal notranslate"><span class="pre">ceviche</span></code>, we implemented a polynomial <span class="math notranslate nohighlight">\(\beta\)</span> continuation
+scheme that performed more reliably than the step-wise continuation scheme used in the original implementation,
+and EngiBench also possesses the ability to change the starting and ending continuation values, for future
+research cases where one wishes to estimate or optimize the continuation schedule themselves. Other than these
+changes, the implementation of this problem is as consistent as possible with that of the original <code class="docutils literal notranslate"><span class="pre">ceviche</span></code> library.</p>
 </section>
 <section id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
-<p>This problem currently provides one dataset corresponding to resolution of 120x120, are available on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0">Hugging Face Datasets Hub</a>.</p>
+<p>This problem offers a single datasets of <code class="docutils literal notranslate"><span class="pre">nelx</span></code>=120 and <code class="docutils literal notranslate"><span class="pre">nely</span></code>=120, although various sizes of <code class="docutils literal notranslate"><span class="pre">nelx</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span></code>
+could be generated from the library if desired. The dataset includes columns for the optimal design, all conditions
+listed above, and the corresponding objective value history as the optimizer optimized toward the optimal design
+provided in the dataset. The dataset was generated by sampling by sampling at random <span class="math notranslate nohighlight">\(\lambda_1\)</span>, <span class="math notranslate nohighlight">\(\lambda_2\)</span> and
+<span class="math notranslate nohighlight">\(r_{blur}\)</span> over the conditions mentioned above. The dataset is available on the
+<a class="reference external" href="https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0">Hugging Face Datasets Hub</a>.</p>
 <section id="v0">
 <h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
 <section id="fields">
@@ -746,7 +801,10 @@ provided by the original library authors:</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
