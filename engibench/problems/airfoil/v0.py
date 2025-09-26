@@ -259,7 +259,7 @@ class Airfoil(Problem[DesignType]):
 
     ## Lead
     Cashen Diniz @cashend
-    """  # noqa: RUF002
+    """
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("cd", ObjectiveDirection.MINIMIZE),)
