@@ -13,7 +13,7 @@ from datasets import load_dataset
 print(f"Python version: {sys.version}")
 
 def calculate_runtime(group_size, minutes_per_sim=5):
-    # Calculate runtime based on group size and (rough) estimate of minutes per simulation 
+    # Calculate runtime based on group size and (rough) estimate of minutes per simulation
     total_minutes = group_size * minutes_per_sim
     hours = total_minutes // 60
     minutes = total_minutes % 60
@@ -79,12 +79,12 @@ if __name__ == "__main__":
 
     # ============== Problem-specific elements ===================
     # The following elements are specific to the problem and should be modified accordingly
-    
+
     # Define flow parameter and angle of attack ranges
     Ma_min, Ma_max = 0.5, 0.9  # Mach number range
     Re_min, Re_max = 1.0e6, 2.0e7  # Reynolds number range
     aoa_min, aoa_max = 0.0, 20.0  # Angle of attack range
-    
+
     # Load airfoil designs from HF Database
     ds = load_dataset("IDEALLab/airfoil_v0")
     designs = ds["train"]["initial_design"]+ds["train"]["optimal_design"]+\
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     simulate_configs_designs = np.random.permutation(simulate_configs_designs).tolist()
 
     print(f"Generated {len(simulate_configs_designs)} configurations for simulation.")
-    
+
     # Calculate total number of simulation jobs and number of sbatch maps needed
     n_simulations = len(simulate_configs_designs)
     n_sbatch_maps = np.ceil(n_simulations / (group_size * n_slurm_array))

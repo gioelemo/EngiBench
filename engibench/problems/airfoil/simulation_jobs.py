@@ -19,9 +19,9 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
 
     Args:
         problem_configuration (dict): The specific configuration used to setup the problem being passed.
-            For the airfoil problem this includes Mach number, Reynolds number, and andle of attack.
+            For the airfoil problem this includes Mach number, Reynolds number, and angle of attack.
         configuration_id (int): A unique identifier for the job for later debugging or tracking.
-        design (list): list of lists defining x and y corrdinates of airfoil geometry.
+        design (list): list of lists defining x and y coordinates of airfoil geometry.
 
     Returns:
         "performance_dict": Dictionary of aerodynamic performance (lift & drag).
