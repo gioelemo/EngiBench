@@ -84,7 +84,7 @@ class Photonics2D(Problem[npt.NDArray]):
     bend or direct the energy toward two specific locations in the device, as measured by how much of
     the electric field of each wavelength overlaps with the desired output port locations. The design
     space consists of a 2D array representing the presence of either a high or low permittivity,
-    parameterized by `nelx` and `nely`, i.e., $\DesignSpace = [0,1]^{\text{nelx}\times \text{nely}}$.
+    parameterized by `nelx` and `nely`, i.e., $\text{design_space} = [0,1]^{\text{nelx}\times \text{nely}}$.
     By default, the library uses a $120 \times 120$ space, however, this can be modified to non-square
     design spaces by the user. Specifically, we use a 2D tensor `rho` (num_elems_x, num_elems_y) with
     values in [0, 1], representing material density. This is stored as `design_space` (gymnasium.spaces.Box).
@@ -103,7 +103,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     ## Conditions
     These are designed as user-configurable parameters that alter the problem definition. The
-    conditions ($\CondSpace$) consist of the two input wavelengths to be demultiplexed --
+    conditions consist of the two input wavelengths to be demultiplexed --
     $\lambda_1$ and $\lambda_2$, as well as a desired `blur_radius` ($r_{blur}$) parameter,
     which blurs (using a circular convolution) the pixelized design field for a chosen number of
     integer pixels\textemdash this blurring essentially creates a penalty on the minimum feature size
@@ -153,7 +153,7 @@ class Photonics2D(Problem[npt.NDArray]):
     The simulation uses the `ceviche` library's Finite Difference Frequency Domain (FDFD)
     solver (`fdfd_ez`). Optimization uses `ceviche.optimizers.adam_optimize` with
     gradients computed via automatic differentiation (`autograd`).
-    The simulation code uses the \texttt{ceviche} library~\citep{hughes2019forward} and specifically,
+    The simulation code uses the \texttt{ceviche} library and specifically,
     the wave demultiplexer demonstration case provided by the
     [library authors](https://github.com/fancompute/workshop-invdesign/blob/master/04_Invdes_wdm_scheduling.ipynb}
     based on their related publication, which uses a similar formalism to an earlier demultiplexer
