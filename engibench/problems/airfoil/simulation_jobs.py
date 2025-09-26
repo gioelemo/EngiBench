@@ -1,14 +1,10 @@
 """Dataset Generator for the Airfoil problem using the SLURM API."""
 
-from argparse import ArgumentParser
-from itertools import product
-import os, sys
-import shutil
 import time
-from typing import Any
+
 import numpy as np
+
 from engibench.problems.airfoil.v0 import Airfoil
-from engibench.utils import slurm
 
 
 def simulate_slurm(problem_configuration: dict, configuration_id: int, design: list) -> dict:
@@ -30,7 +26,6 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
         "problem_configuration": Problem configuration parameters
         "configuration_id": Identifier for specific simulation configurations
     """
-
     # Instantiate problem
     problem = Airfoil()
 
@@ -47,7 +42,7 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
     start_time = time.time()
 
     performance = problem.simulate(my_design, mpicores=1, config=problem_configuration)
-    performance_dict = {'drag': performance[0], 'lift': performance[1]}
+    performance_dict = {"drag": performance[0], "lift": performance[1]}
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time

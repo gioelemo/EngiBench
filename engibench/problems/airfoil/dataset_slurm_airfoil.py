@@ -1,15 +1,13 @@
 from argparse import ArgumentParser
-from itertools import product
-import os, sys
-import shutil
-import time
-from typing import Any
-import matplotlib.pyplot as plt
+import sys
+
+from datasets import load_dataset
 import numpy as np
 from scipy.stats import qmc
-from engibench.utils import slurm
+
 from engibench.problems.airfoil.simulation_jobs import simulate_slurm
-from datasets import load_dataset
+from engibench.utils import slurm
+
 print(f"Python version: {sys.version}")
 
 def calculate_runtime(group_size, minutes_per_sim=5):
@@ -113,8 +111,8 @@ if __name__ == "__main__":
             ma = mach_values[i*n_flows + j]
             re = reynolds_values[i*n_flows + j]
             for k, alpha in enumerate(rng.uniform(low=aoa_min, high=aoa_max, size=n_aoas)):
-                problem_configuration = {'mach': ma, 'reynolds': re, 'alpha': alpha}
-                config = {'problem_configuration': problem_configuration, 'configuration_id': config_id}
+                problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
+                config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
                 config["design"] = design["coords"]
                 simulate_configs_designs.append(config)
                 config_id += 1
@@ -148,7 +146,7 @@ if __name__ == "__main__":
             args=sim_batch_configs,
             slurm_args=slurm_config,
             group_size=group_size,  # Number of jobs to batch in sequence to reduce job array size
-            work_dir='scratch'
+            work_dir="scratch"
         )
 
         # Save the job array reference
