@@ -40,6 +40,8 @@
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'problems/heatconduction3d';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
@@ -512,6 +514,7 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
@@ -574,9 +577,18 @@ document.write(`
 <h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
 <p>This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://github.com/dolfin-adjoint/pyadjoint/blob/master/examples/poisson-topology/poisson-topology.py)</p>
 </section>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
+heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
+design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
+technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.</p>
+</section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>The design space is represented by a 3D numpy array which indicates the resolution.</p>
+<p>These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit cube (3D), subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
+particularly the location of the adiabatic region. The adiabatic region refers to a  prescribed symmetric area on the bottom surface of the 3D problem space. The 3D design space is represented as a 3D tensor of densities. By default,
+a <span class="math notranslate nohighlight">\(51 \times 51 \times 51\)</span> space is used for the 3D problem.</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
@@ -670,6 +682,7 @@ Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, “Mean squared error may 
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
