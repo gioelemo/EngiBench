@@ -9,23 +9,17 @@ import os
 import numpy as np
 from fenics import *
 from fenics_adjoint import *
-
-# -------------------------------
-# Initialization and Parameter Setup
-# -------------------------------
-
-# Define base path for shared resources
-BASE_PATH = "/home/fenics/shared"
-SIM_VAR_PATH = os.path.join(BASE_PATH, "templates", "sim_var.txt")
-
-# Read simulation parameters from file
-with open(SIM_VAR_PATH, "r") as file:
-    data = file.read().split("\t")
+from engibench.utils.cli import np_array_from_stdin, cast_argv
 
 # Extract parameters
-NN = int(data[2])-1  # Grid size
-vol_f = float(data[0])  # Volume fraction
-width = float(data[1])  # Adiabatic boundary width
+# NN: Grid size
+# vol_f: Volume fraction
+# width: Adiabatic boundary width
+NN, vol_f, width, output_path = cast_argv(int, float, float, str)
+# Load Initial Design Data
+image = np_array_from_stdin()
+
+output_dir = os.path.dirname(output_path)
 
 # Compute step size
 step = 1.0 / float(NN)
@@ -34,21 +28,6 @@ step = 1.0 / float(NN)
 x_values = np.linspace(0, 1, num=NN + 1)
 y_values = np.linspace(0, 1, num=NN + 1)
 z_values = np.linspace(0, 1, num=NN + 1)
-
-# Remove simulation variable file after reading
-os.remove(SIM_VAR_PATH)
-
-# -------------------------------
-# Load Initial Design Data
-# -------------------------------
-
-# Construct filename for input data
-input_filename = f"templates/hr_data_v={vol_f}_w={width}_.npy"
-input_path = os.path.join(BASE_PATH, input_filename)
-
-# Load initial design image
-image = np.load(input_path)
-os.remove(input_path)  # Remove after loading
 
 # -------------------------------
 # Mesh and Function Space Setup
@@ -104,7 +83,14 @@ class BoundaryConditions(SubDomain):
     """Defines Dirichlet boundary conditions on specific edges."""
 
     def inside(self, x, on_boundary):
-        return (x[2]>0 and x[0]==0) or (x[2]>0 and x[0]==1) or (x[2]>0 and x[1]==0) or (x[2]>0 and x[1]==1) or (x[2]==1) or (x[2]==0 and (x[0] < lb_2 or x[0] > ub_2) and (x[1] < lb_2 or x[1] > ub_2))
+        return (
+            (x[2] > 0 and x[0] == 0)
+            or (x[2] > 0 and x[0] == 1)
+            or (x[2] > 0 and x[1] == 0)
+            or (x[2] > 0 and x[1] == 1)
+            or (x[2] == 1)
+            or (x[2] == 0 and (x[0] < lb_2 or x[0] > ub_2) and (x[1] < lb_2 or x[1] > ub_2))
+        )
 
 
 # Apply boundary condition: Temperature = 0
@@ -121,6 +107,8 @@ f = interpolate(Constant(1.0e-2), P)  # Default source term
 parameters["form_compiler"]["optimize"] = True
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["cpp_optimize_flags"] = "-O3 -ffast-math -march=native"
+
+
 def forward(a):
     """Solve the heat conduction PDE given a material distribution 'a'."""
     T = Function(P, name="Temperature")
@@ -130,7 +118,19 @@ def forward(a):
     F = inner(grad(v), k(a) * grad(T)) * dx - f * v * dx
 
     # Solve PDE
-    solve(F == 0, T, bc, solver_parameters={"newton_solver": {"absolute_tolerance": 1.0e-7,"maximum_iterations": 20, "linear_solver": "cg", "preconditioner": "petsc_amg"}})
+    solve(
+        F == 0,
+        T,
+        bc,
+        solver_parameters={
+            "newton_solver": {
+                "absolute_tolerance": 1.0e-7,
+                "maximum_iterations": 20,
+                "linear_solver": "cg",
+                "preconditioner": "petsc_amg",
+            }
+        },
+    )
 
     return T
 
@@ -205,7 +205,7 @@ V_output = FunctionSpace(mesh_output, "CG", 1)
 sol_output = a_opt
 
 # Save optimized control to XDMF file
-output_xdmf = XDMFFile("/home/fenics/shared/templates/RES_SIM/SIM_solution_v={}_w={}.xdmf".format(vol_f, width))
+output_xdmf = XDMFFile(os.path.join(output_dir, f"RES_SIM/SIM_solution_v={vol_f}_w={width}.xdmf"))
 output_xdmf.write(a_opt)
 
 # Save discrete results as numpy array
@@ -224,11 +224,11 @@ for xs in x_values:
             ind += 1
 
 # Save results as numpy file
-output_npy = "/home/fenics/shared/templates/RES_SIM/SIM_hr_data_v={}_w={}.npy".format(vol_f, width)
+output_npy = os.path.join(output_dir, f"RES_SIM/SIM_hr_data_v={vol_f}_w={width}.npy")
 np.save(output_npy, results)
 
 # Save performance metric
-with open("/home/fenics/shared/templates/RES_SIM/Performance.txt", "w") as f:
+with open(output_path, "w") as f:
     f.write("%.14f" % J_CONTROL.tape_value())
 
 # Clean up temporary files

@@ -5,8 +5,7 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 """
 
 from dataclasses import dataclass
-import os
-import subprocess
+from pathlib import Path
 from typing import Annotated, Any
 
 from gymnasium import spaces
@@ -22,7 +21,9 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.utils import container
+from engibench.problems.heatconduction2d.shared import load_float
+from engibench.problems.heatconduction2d.shared import run_container_script
+from engibench.utils import cli
 
 
 @constraint(categories=THEORY, criticality=Criticality.Warning)
@@ -147,23 +148,16 @@ class HeatConduction3D(Problem[npt.NDArray]):
         if design is None:
             design = self.initialize_design(volume, resolution)
 
-        self.__copy_templates()
-        with open("templates/sim_var.txt", "w") as f:
-            f.write(f"{volume}\t{area}\t{resolution}")
-
-        filename = "templates/hr_data_v=" + str(volume) + "_w=" + str(area) + "_.npy"
-        np.save(filename, design)
-
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/simulate_heat_conduction_3d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        perf = load_float(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "simulate_heat_conduction_3d.py",
+                args=(resolution - 1, volume, area),
+                stdin=cli.np_array_to_bytes(design),
+                output_path="RES_SIM/Performance.txt",
+            )
         )
 
-        with open(r"templates/RES_SIM/Performance.txt") as fp:
-            perf = fp.read()
         return np.array([float(perf)])
 
     def optimize(
@@ -185,21 +179,15 @@ class HeatConduction3D(Problem[npt.NDArray]):
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
 
-        self.__copy_templates()
-        with open("templates/OPT_var.txt", "w") as f:
-            f.write(f"{volume}\t{area}\t{resolution}")
-
-        filename = "templates/hr_data_OPT_v=" + str(volume) + "_w=" + str(area) + "_.npy"
-        np.save(filename, starting_point)
-
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/optimize_heat_conduction_3d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        output = np.load(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "optimize_heat_conduction_3d.py",
+                args=(resolution - 1, volume, area),
+                stdin=cli.np_array_to_bytes(starting_point),
+                output_path=f"RES_OPT/OUTPUT={volume}_w={area}.npz",
+            )
         )
-        output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(area) + "_.npz")
 
         steps = output["OptiStep"]
         optisteps = [OptiStep(step, it) for it, step in enumerate(steps)]
@@ -209,13 +197,6 @@ class HeatConduction3D(Problem[npt.NDArray]):
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Reset the problem to a given seed."""
         super().reset(seed, **kwargs)
-
-    def __copy_templates(self) -> None:
-        """Copy the templates from the installation location to the current working directory."""
-        if not os.path.exists("templates"):
-            os.mkdir("templates")
-        templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        subprocess.run(["cp", "-r", f"{templates_location}/.", "templates/"], check=True)
 
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
@@ -230,26 +211,14 @@ class HeatConduction3D(Problem[npt.NDArray]):
         volume = volume if volume is not None else self.config.volume
         resolution = resolution if resolution is not None else self.config.resolution
 
-        self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:
-            f.write(f"{volume}\t{resolution}")
-
-        # Run the Docker command
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/initialize_design_3d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        return np.load(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "initialize_design_3d.py",
+                args=(resolution - 1, volume),
+                output_path=f"initialize_design/initial_v={volume}_resol={resolution}.npy",
+            )
         )
-
-        # Load the generated design data from the numpy file
-        design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
-        if not os.path.exists(design_file):
-            error_msg = f"Design file {design_file} not found."
-            raise FileNotFoundError(error_msg)
-
-        return np.load(design_file)
 
     def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.

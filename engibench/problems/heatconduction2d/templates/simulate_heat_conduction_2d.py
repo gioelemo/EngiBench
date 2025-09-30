@@ -6,26 +6,26 @@ and saves performance (thermal conductivity) metric.
 """
 
 import os
+from io import BytesIO
+import sys
 import numpy as np
 from fenics import *
 from fenics_adjoint import *
+from engibench.utils.cli import np_array_from_stdin, cast_argv
 
 # -------------------------------
 # Initialization and Parameter Setup
 # -------------------------------
 
-# Define base path for shared resources
-BASE_PATH = "/home/fenics/shared"
-SIM_VAR_PATH = os.path.join(BASE_PATH, "templates", "sim_var.txt")
-
-# Read simulation parameters from file
-with open(SIM_VAR_PATH, "r") as file:
-    data = file.read().split("\t")
-
 # Extract parameters
-NN = int(data[2])-1  # Grid size
-vol_f = float(data[0])  # Volume fraction
-width = float(data[1])  # Adiabatic boundary width
+# NN: Grid size
+# vol_f: Volume fraction
+# width: Adiabatic boundary width
+NN, vol_f, width, output_path = cast_argv(int, float, float, str)
+# Load Initial Design Data
+image = np_array_from_stdin()
+
+output_dir = os.path.dirname(output_path)
 
 # Compute step size
 step = 1.0 / float(NN)
@@ -33,21 +33,6 @@ step = 1.0 / float(NN)
 # Generate x and y coordinate values
 x_values = np.linspace(0, 1, num=NN + 1)
 y_values = np.linspace(0, 1, num=NN + 1)
-
-# Remove simulation variable file after reading
-os.remove(SIM_VAR_PATH)
-
-# -------------------------------
-# Load Initial Design Data
-# -------------------------------
-
-# Construct filename for input data
-input_filename = f"templates/hr_data_v={vol_f}_w={width}_.npy"
-input_path = os.path.join(BASE_PATH, input_filename)
-
-# Load initial design image
-image = np.load(input_path)
-os.remove(input_path)  # Remove after loading
 
 # -------------------------------
 # Mesh and Function Space Setup
@@ -202,7 +187,7 @@ V_output = FunctionSpace(mesh_output, "CG", 1)
 sol_output = a_opt
 
 # Save optimized control to XDMF file
-output_xdmf = XDMFFile("/home/fenics/shared/templates/RES_SIM/SIM_solution_v={}_w={}.xdmf".format(vol_f, width))
+output_xdmf = XDMFFile(os.path.join(output_dir, f"RES_SIM/SIM_solution_v={vol_f}_w={width}.xdmf"))
 output_xdmf.write(a_opt)
 
 # Save discrete results as numpy array
@@ -219,11 +204,11 @@ for xs in x_values:
         ind += 1
 
 # Save results as numpy file
-output_npy = "/home/fenics/shared/templates/RES_SIM/SIM_hr_data_v={}_w={}.npy".format(vol_f, width)
+output_npy = os.path.join(output_dir, f"RES_SIM/SIM_hr_data_v={vol_f}_w={width}.npy")
 np.save(output_npy, results)
 
 # Save performance metric
-with open("/home/fenics/shared/templates/RES_SIM/Performance.txt", "w") as f:
+with open(output_path, "w") as f:
     f.write("%.14f" % J_CONTROL.tape_value())
 
 # Clean up temporary files
