@@ -26,6 +26,7 @@ def run(  # noqa: PLR0913
     mounts: Sequence[tuple[str, str]] = (),
     env: dict[str, str] | None = None,
     name: str | None = None,
+    stdin: bytes | None = None,
     *,
     sync_uid: bool = False,
 ) -> None:
@@ -37,6 +38,7 @@ def run(  # noqa: PLR0913
         mounts: Pairs of host folder and destination folder inside the container.
         env: Mapping of environment variable names and values to set inside the container.
         name: Optional name for the container (not supported by all runtimes).
+        stdin: Optional data to feed to stdin of the process inside the container.
         sync_uid: Use the uid of the current process as uid inside the container.
     """
     if RUNTIME is None:
@@ -44,7 +46,7 @@ def run(  # noqa: PLR0913
         raise FileNotFoundError(msg)
 
     try:
-        result = RUNTIME.run(command, image, mounts, env, name, sync_uid=sync_uid)
+        result = RUNTIME.run(command, image, mounts, env, name, stdin, sync_uid=sync_uid)
         result.check_returncode()
     except subprocess.CalledProcessError as e:
         msg = f"""Container command failed with exit code {e.returncode}:
@@ -95,6 +97,7 @@ class ContainerRuntime:
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
+        stdin: bytes | None = None,
         *,
         sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
@@ -106,6 +109,7 @@ class ContainerRuntime:
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
         """
         raise NotImplementedError("Must be implemented by a subclass")
@@ -172,6 +176,7 @@ class Docker(ContainerRuntime):
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
+        stdin: bytes | None = None,
         *,
         sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
@@ -183,10 +188,12 @@ class Docker(ContainerRuntime):
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
         """
         name_args = [] if name is None else ["--name", name]
         user_args = cls._user_args() if sync_uid else ()
+        stdin_args = () if stdin is None else ("-i",)
 
         return subprocess.run(
             [
@@ -196,6 +203,7 @@ class Docker(ContainerRuntime):
                 *name_args,
                 *_mount_args(mounts),
                 *_env_args(env or {}),
+                *stdin_args,
                 *user_args,
                 image,
                 *command,
@@ -203,6 +211,7 @@ class Docker(ContainerRuntime):
             check=False,
             capture_output=True,
             env=cls._env(),
+            input=stdin,
         )
 
     @classmethod
@@ -319,6 +328,7 @@ class Apptainer(ContainerRuntime):
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,  # noqa: ARG003
+        stdin: bytes | None = None,
         *,
         sync_uid: bool = False,  # noqa: ARG003
     ) -> subprocess.CompletedProcess:
@@ -330,6 +340,7 @@ class Apptainer(ContainerRuntime):
             mounts: Pairs of host folder and destination folder inside the container.
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
+            stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
         """
         # Set Apptainer environment variables
@@ -350,6 +361,7 @@ class Apptainer(ContainerRuntime):
                 *command,
             ],
             check=False,
+            input=stdin,
         )
 
 
