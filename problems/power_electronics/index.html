@@ -40,6 +40,8 @@
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'problems/power_electronics';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
@@ -512,7 +514,8 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
@@ -580,33 +583,51 @@ The circuit topology is fixed. It is defined in the netlist file <code class="do
 By changing circuit parameters such as capacitance, we rewrite the netlist file and use ngSpice to simulate the circuits to get the performance metrics, which are defined as the objectives of this problem.
 You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.</p>
 </section>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>Optimizing circuit parameters is a critical aspect of circuit design but remains challenging, particularly for power converter circuits that contain diodes and switches,
+which introduce significant nonlinearity and discontinuity. These characteristics make key objectives such as <em>DcGain</em> and <em>Voltage Ripple</em> highly sensitive to even small parameter variations.</p>
+<p>Because the circuit simulator NgSpice operates as a black box and is non-differentiable, gradient-based optimization methods are not suitable.
+Bayesian optimization is commonly employed for parameter tuning, while surrogate models offer a promising alternative.
+Even under the constraint of a fixed topology, optimizing circuit parameters to minimize the objectives remains a difficult problem for surrogate models.</p>
+<p>NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff’s laws.
+These equations are discretized using numerical integration methods such as the Backward Euler or trapezoidal rule and solved iteratively at each time step to compute performance metrics.
+To ensure stable simulations, a specific on-off switching pattern is chosen for the circuit.
+Despite this simplification, determining the optimal parameter values remains highly challenging.</p>
+</section>
 <section id="design-space">
-<h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>The design space is represented by a 20-dimensional vector that defines the cicuit parameters.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">C0</span></code>, <code class="docutils literal notranslate"><span class="pre">C1</span></code>, <code class="docutils literal notranslate"><span class="pre">C2</span></code>, <code class="docutils literal notranslate"><span class="pre">C3</span></code>, <code class="docutils literal notranslate"><span class="pre">C4</span></code>, <code class="docutils literal notranslate"><span class="pre">C5</span></code>: Capacitor values in Farads for each capacitor. Range: [1e-6, 2e-5].</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">L0</span></code>, <code class="docutils literal notranslate"><span class="pre">L1</span></code>, <code class="docutils literal notranslate"><span class="pre">L2</span></code>: Inductor values in Henries for each inductance. Range: [1e-6, 1e-3].</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">T1</span></code>: Duty cycle, the fraction of “on” time. Range: [0.1, 0.9]. Because all the 5 switches change their on/off state at the same time, we only need to set one <code class="docutils literal notranslate"><span class="pre">T1</span></code> value.
-For example, <code class="docutils literal notranslate"><span class="pre">T1</span> <span class="pre">=</span> <span class="pre">0.1</span></code> means that all the switches are first turned “on” for 10% of the time, then “off” for the remaining 90%. This on-off pattern repeats at a high frequency until the simulation is over.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">GS0_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS1_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS2_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS3_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS4_L1</span></code>: Switches <code class="docutils literal notranslate"><span class="pre">L1</span></code>. Binary values (0 or 1).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">GS0_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS1_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS2_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS3_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS4_L2</span></code>: Switches <code class="docutils literal notranslate"><span class="pre">L2</span></code>. Binary values (0 or 1).
-Each switch is a voltage-controlled switch. For example, <code class="docutils literal notranslate"><span class="pre">S0</span></code> is controlled by <code class="docutils literal notranslate"><span class="pre">V_GS0</span></code>, whose voltage is defined by <code class="docutils literal notranslate"><span class="pre">GS0_L1</span></code> and <code class="docutils literal notranslate"><span class="pre">GS0_L2</span></code>.
-In short, 0 means <code class="docutils literal notranslate"><span class="pre">S0</span></code> is off and 1 means <code class="docutils literal notranslate"><span class="pre">S0</span></code> is on.
-For example, When <code class="docutils literal notranslate"><span class="pre">GS0_L1</span> <span class="pre">=</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">GS0_L2</span> <span class="pre">=</span> <span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">S0</span></code> is first turned off for time <code class="docutils literal notranslate"><span class="pre">T1</span> <span class="pre">*</span> <span class="pre">Ts</span></code>, and then turned on for <code class="docutils literal notranslate"><span class="pre">(1</span> <span class="pre">-</span> <span class="pre">T1)</span> <span class="pre">*</span> <span class="pre">Ts</span></code>, where <code class="docutils literal notranslate"><span class="pre">Ts</span></code> is set to 5e-6.
-As a result, each switch can be on -&gt; off, on -&gt; on, off -&gt; on, or off -&gt; off independently.</p></li>
-</ul>
+<h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>The design space for this problem is represented as a 10-dimensional bounded box, where each dimension corresponds to a specific circuit parameter. These parameters include values for capacitors, inductors, and a shared duty cycle for all switches. Each design can be expressed as a vector <strong>x</strong> of the form:</p>
+<div class="math notranslate nohighlight">
+\[
+x = \begin{bmatrix} C_1,\dots,C_6,L_1,L_2,L_3,T_1 \end{bmatrix}^{\top} \in \mathcal{X},
+\quad
+\mathcal{X} = [1\text{e}{-6}, 2\text{e}{-5}]^6 \times [1\text{e}{-6}, 1\text{e}{-3}]^3 \times [0.1, 0.9]
+\]</div>
+<p>Here, <span class="math notranslate nohighlight">\(C_1,\dots,C_6\)</span> are the capacitance values (in Farads), <span class="math notranslate nohighlight">\(L_1,L_2,L_3\)</span> are the inductance values (in Henries), and <span class="math notranslate nohighlight">\(T_1\)</span> is the duty cycle shared across all 5 switches. The duty cycle <span class="math notranslate nohighlight">\(T_1\)</span> denotes the fraction of time during which the switches are in the “on” state and governs a periodic on-off pattern repeated at high frequency throughout the simulation.</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
-<p>The objectives are defined by the following parameters:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">DcGain-0.25</span></code>: The ratio of load vs. input voltage. It’s desired to be as close to a preset constant, such as 0.25, as possible.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Voltage</span> <span class="pre">Ripple</span></code>: Fluctuation of voltage on the load <code class="docutils literal notranslate"><span class="pre">R0</span></code>. The lower the better.</p></li>
-</ul>
+<p>The simulation outputs two scalar values: <em>DcGain</em> and <em>Voltage Ripple</em>. The former represents the ratio of load to input voltage and should ideally approximate a predefined constant, such as <span class="math notranslate nohighlight">\(0.25\)</span>, as closely as possible. Meanwhile, the latter quantifies the voltage fluctuation at the load.</p>
+<p><strong>DcGain objective:</strong></p>
+<div class="math notranslate nohighlight">
+\[
+\min_{\mathbf{x} \in \mathcal{X}} \; \bigg|\frac{\overline{V_{load}(t)}}{V_{source}} - 0.25\bigg|
+= \bigg|\frac{1}{V_{source}} \cdot \frac{1}{T} \sum_{i=1}^{N-1} \frac{V_{load}(t_{i+1}) + V_{load}(t_i)}{2} \cdot (t_{i+1} - t_i) - 0.25\bigg|
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\overline{V_{load}(t)}\)</span> is the average load voltage, <span class="math notranslate nohighlight">\(V_{source} = 1000\)</span> volts, and <span class="math notranslate nohighlight">\(T = t_N - t_1\)</span> is the simulation duration.</p>
+<p><strong>Voltage Ripple objective:</strong></p>
+<div class="math notranslate nohighlight">
+\[
+\min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple}
+= \frac{V_{pp}(t)}{\overline{V_{load}(t)}}
+= \frac{\max_{i \in [1, N]} V_{load}(t_i) - \min_{i \in [1, N]} V_{load}(t_i)}{\overline{V_{load}(t)}}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(V_{pp}\)</span> is the peak-to-peak load voltage calculated during transient analysis.</p>
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>There is no condition for this problem.</p>
+<p>This problem does not include environmental or operational conditions as part of its input specification. Unlike other domains where the simulation setup may vary based on conditions (e.g., load configurations or external temperatures), the circuit is simulated under fixed source voltage and switching behavior. As a result, the design optimization task focuses solely on tuning internal circuit parameters, with no external conditions to vary. More complex variants of this problem — involving multiple topologies or variable source voltages — may be considered in future releases.</p>
 </section>
 <section id="simulator">
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
@@ -699,7 +720,8 @@ Here are the 3 parts:</p>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
