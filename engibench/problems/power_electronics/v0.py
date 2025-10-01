@@ -44,9 +44,9 @@ class PowerElectronics(Problem[npt.NDArray]):
     Bayesian optimization is commonly employed for parameter tuning, while surrogate models offer a promising alternative.
     Even under the constraint of a fixed topology, optimizing circuit parameters to minimize the objectives remains a difficult problem for surrogate models.
 
-    NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff’s laws.
+    NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff's laws.
     These equations are discretized using numerical integration methods such as the Backward Euler or trapezoidal rule and solved iteratively at each time step to compute performance metrics.
-    To ensure stable simulations, a specific on–off switching pattern is chosen for the circuit.
+    To ensure stable simulations, a specific on-off switching pattern is chosen for the circuit.
     Despite this simplification, determining the optimal parameter values remains highly challenging.
 
     ## Design Space
