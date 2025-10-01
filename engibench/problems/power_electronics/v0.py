@@ -37,16 +37,16 @@ class PowerElectronics(Problem[npt.NDArray]):
     You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.
 
     ## Motivation
-    Optimizing circuit parameters is a critical aspect of circuit design but remains challenging, particularly for power converter circuits that contain diodes and switches, 
+    Optimizing circuit parameters is a critical aspect of circuit design but remains challenging, particularly for power converter circuits that contain diodes and switches,
     which introduce significant nonlinearity and discontinuity. These characteristics make key objectives such as *DcGain* and *Voltage Ripple* highly sensitive to even small parameter variations.
 
-    Because the circuit simulator NgSpice operates as a black box and is non-differentiable, gradient-based optimization methods are not suitable. 
-    Bayesian optimization is commonly employed for parameter tuning, while surrogate models offer a promising alternative. 
+    Because the circuit simulator NgSpice operates as a black box and is non-differentiable, gradient-based optimization methods are not suitable.
+    Bayesian optimization is commonly employed for parameter tuning, while surrogate models offer a promising alternative.
     Even under the constraint of a fixed topology, optimizing circuit parameters to minimize the objectives remains a difficult problem for surrogate models.
 
-    NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff’s laws. 
-    These equations are discretized using numerical integration methods such as the Backward Euler or trapezoidal rule and solved iteratively at each time step to compute performance metrics. 
-    To ensure stable simulations, a specific on–off switching pattern is chosen for the circuit. 
+    NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff’s laws.
+    These equations are discretized using numerical integration methods such as the Backward Euler or trapezoidal rule and solved iteratively at each time step to compute performance metrics.
+    To ensure stable simulations, a specific on–off switching pattern is chosen for the circuit.
     Despite this simplification, determining the optimal parameter values remains highly challenging.
 
     ## Design Space
@@ -75,7 +75,7 @@ class PowerElectronics(Problem[npt.NDArray]):
     **Voltage Ripple objective:**
 
     $$
-    \min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple} 
+    \min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple}
     = \frac{V_{pp}(t)}{\overline{V_{load}(t)}}
     = \frac{\max_{i \in [1, N]} V_{load}(t_i) - \min_{i \in [1, N]} V_{load}(t_i)}{\overline{V_{load}(t)}}
     $$
