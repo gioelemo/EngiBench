@@ -106,14 +106,12 @@ All the associated datasets are licensed under the CC-BY-NC-SA 4.0 license.
 If you use EngiBench in your research, please cite the following paper:
 
 ```bibtex
-@misc{felten_engibench_2025,
+@inproceedings{felten_engibench_2025,
 	title = {{EngiBench}: {A} {Framework} for {Data}-{Driven} {Engineering} {Design} {Research}},
-	url = {http://arxiv.org/abs/2508.00831},
-	doi = {10.48550/arXiv.2508.00831},
-	urldate = {2025-08-07},
-	publisher = {arXiv},
+	url = {https://openreview.net/forum?id=YowD33Q89V},
+	urldate = {2025-10-07},
 	author = {Felten, Florian and Apaza, Gabriel and B\¨aunlich, Gerhard and Diniz, Cashen and Dong, Xuliang and Drake, Arthur and Habibi, Milad and Hoffman, Nathaniel J. and Keeler, Matthew and Massoudi, Soheyl and VanGessel, Francis G. and Fuge, Mark},
-	month = jun,
+	booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)}
 	year = {2025},
 }
 ```
