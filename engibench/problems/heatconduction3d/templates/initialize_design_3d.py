@@ -7,18 +7,12 @@ It defines the resolution, reads the design variables, and writes out the initia
 import os
 import numpy as np
 from fenics import *
+from engibench.utils.cli import np_array_from_stdin, cast_argv
 
-# Define the base directory path for templates and read the design variables
-base_path = "/home/fenics/shared"
-des_var_path = os.path.join(base_path, "templates", "Des_var.txt")
-
-# Read the design variable file and extract parameters
-with open(des_var_path, "r") as file:
-    lines = file.read().split("\t")
-
-# Set the number of discretization points (NN) and the volume fraction (vol_f)
-NN = int(lines[1])-1  # Resolution of the grid (arbitrary, affects performance)
-vol_f = float(lines[0])  # Volume fraction for the control
+# Extract parameters
+# NN: Resolution of the grid (arbitrary, affects performance)
+# vol_f: Volume fraction for the control
+NN, vol_f, output_path = cast_argv(int, float, str)
 
 # Discretization step size (based on NN)
 step = 1.0 / float(NN)
@@ -26,12 +20,11 @@ step = 1.0 / float(NN)
 # Generate mesh grid values for both x, y and Z directions
 x_values = np.linspace(0, 1, num=NN + 1)
 y_values = np.linspace(0, 1, num=NN + 1)
-z_values=np.linspace(0,1,num=NN+1)
-os.remove(des_var_path)
+z_values = np.linspace(0, 1, num=NN + 1)
 
 # Set up the finite element function space
 V = Constant(vol_f)  # Volume bound on the control
-mesh =UnitCubeMesh(NN, NN, NN) # Create a unit cube mesh with NN discretization
+mesh = UnitCubeMesh(NN, NN, NN)  # Create a unit cube mesh with NN discretization
 A = FunctionSpace(mesh, "CG", 1)  # Function space for the control variable
 
 if __name__ == "__main__":
@@ -40,8 +33,7 @@ if __name__ == "__main__":
     a = interpolate(MM, A)  # Initial guess for the design
 
     # Define the path to save the design files
-    design_folder = os.path.join(base_path, "templates", "initialize_design")
-    xdmf_file_path = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.xdmf")
+    xdmf_file_path = output_path.removesuffix(".npy") + ".xdmf"
 
     # Write the mesh and initial design to an XDMF file
     with XDMFFile(xdmf_file_path) as outfile:
@@ -55,10 +47,9 @@ if __name__ == "__main__":
     ind = 0
     for xs in x_values:
         for ys in y_values:
-            for  zs in z_values:
+            for zs in z_values:
                 results[ind, 0] = V  # Store the volume value
                 ind += 1
-    results=results.reshape(NN+1, NN+1, NN+1)
+    results = results.reshape(NN + 1, NN + 1, NN + 1)
     # Save the results array to a .npy file
-    filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.npy")
-    np.save(filename, results)
+    np.save(output_path, results)

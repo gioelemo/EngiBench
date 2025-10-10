@@ -10,6 +10,7 @@ import re
 import numpy as np
 from fenics import *
 from fenics_adjoint import *
+from engibench.utils.cli import np_array_from_stdin, cast_argv
 
 
 # Ensure IPOPT is available
@@ -20,16 +21,17 @@ except ImportError:
     When compiling IPOPT, make sure to link against HSL, as it \
     is a necessity for practical problems.""")
     raise
-# Define base paths and read optimization variables
-base_path = "/home/fenics/shared"
-OPT_var_path = os.path.join(base_path, "templates", "OPT_var.txt")
-# Open and read the optimization variable file
-with open(OPT_var_path, "r") as file:
-    data = file.read().split("\t")
+
+
 # Extract parameters
-NN = int(data[2]) - 1  # Grid size
-vol_f = float(data[0])  # Volume fraction
-width = float(data[1])  # Adiabatic boundary width
+# NN: Grid size
+# vol_f: Volume fraction
+# width: Adiabatic boundary width
+NN, vol_f, width, output_path = cast_argv(int, float, float, str)
+# Load Initial Design Data
+image = np_array_from_stdin()
+
+output_dir = os.path.dirname(output_path)
 
 # Compute step size
 step = 1.0 / float(NN)
@@ -38,18 +40,6 @@ step = 1.0 / float(NN)
 x_values = np.linspace(0, 1, num=NN + 1)
 y_values = np.linspace(0, 1, num=NN + 1)
 z_values = np.linspace(0, 1, num=NN + 1)
-
-# Remove simulation variable file after reading
-os.remove(OPT_var_path)
-# -------------------------------
-# Load Initial Design Data
-# -------------------------------
-input_filename = f"templates/hr_data_OPT_v={vol_f}_w={width}_.npy"
-input_path = os.path.join(base_path, input_filename)
-
-# Load initial design image
-image = np.load(input_path)
-os.remove(input_path)  # Remove after loading
 
 # -------------------------------
 # Mesh and Function Space Setup
@@ -162,7 +152,7 @@ a = interpolate(init_guess, A)
 
 # Solve forward problem
 T = forward(a)
-controls = File("/home/fenics/shared/templates/RES_OPT/control_iterations.pvd")
+controls = File(os.path.join(output_dir, "control_iterations.pvd"))
 a_viz = Function(A, name="ControlVisualisation")
 # Define optimization objective function (cost function)
 J = assemble(f * T * dx + alpha * inner(grad(a), grad(a)) * dx)
@@ -206,7 +196,7 @@ class VolumeConstraint(InequalityConstraint):
 # Define optimization problem
 problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(vol_f))
 # Define filename for IPOPT log
-log_filename = f"/home/fenics/shared/templates/RES_OPT/solution_V={vol_f}_w={width}.txt"
+log_filename = os.path.join(output_dir, f"solution_V={vol_f}_w={width}.txt")
 # Set optimization solver parameters
 solver_params = {"acceptable_tol": 1.0e-100, "maximum_iterations": 100, "file_print_level": 5, "output_file": log_filename}
 solver = IPOPTSolver(problem, parameters=solver_params)
@@ -234,7 +224,7 @@ objective_values = np.array(objective_values)
 mesh_output = UnitCubeMesh(NN, NN, NN)
 V_output = FunctionSpace(mesh_output, "CG", 1)
 sol_output = a_opt
-output_xdmf = XDMFFile("/home/fenics/shared/templates/RES_OPT/final_solution_v={}_w={}.xdmf".format(vol_f, width))
+output_xdmf = XDMFFile(os.path.join(output_dir, f"final_solution_v={vol_f}_w={width}.xdmf"))
 output_xdmf.write(a_opt)
 # Now store the RES_OPTults of this run (x,y,v,w,a)
 RES_OPTults = np.zeros(((NN + 1) ** 3, 1))
@@ -245,15 +235,11 @@ for xs in x_values:
             RES_OPTults[ind, 0] = a_opt(xs, ys, zs)
             ind = ind + 1
 RES_OPTults = RES_OPTults.reshape(NN + 1, NN + 1, NN + 1)
-output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
+output_npy = os.path.join(output_dir, f"hr_data_v_v={vol_f}_w={width}.npy")
 np.save(output_npy, RES_OPTults)
-xdmf_filename = XDMFFile(
-    MPI.comm_world,
-    "/home/fenics/shared/templates/RES_OPT/final_solution_v=" + str(vol_f) + "_w=" + str(width) + "_.xdmf",
-)
+xdmf_filename = XDMFFile(MPI.comm_world, os.path.join(output_dir, f"final_solution_v={vol_f}_w={width}_.xdmf"))
 xdmf_filename.write(a_opt)
 print("v=" + "{}".format(vol_f))
 print("w=" + "{}".format(width))
-filenameOUT = "/home/fenics/shared/templates/RES_OPT/OUTPUT=" + str(vol_f) + "_w=" + str(width) + "_.npz"
-np.savez(filenameOUT, design=RES_OPTults, OptiStep=objective_values)
+np.savez(output_path, design=RES_OPTults, OptiStep=objective_values)
 os.system("rm /home/fenics/shared/templates/RES_OPT/TEMP*")
