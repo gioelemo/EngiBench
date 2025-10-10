@@ -481,6 +481,7 @@ document.write(`
     <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
     <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -492,6 +493,7 @@ document.write(`
 <span class="sd">        mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">        env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">        name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">        stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">        sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">RUNTIME</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -499,7 +501,7 @@ document.write(`
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mounts</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">sync_uid</span><span class="o">=</span><span class="n">sync_uid</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mounts</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">stdin</span><span class="p">,</span> <span class="n">sync_uid</span><span class="o">=</span><span class="n">sync_uid</span><span class="p">)</span>
         <span class="n">result</span><span class="o">.</span><span class="n">check_returncode</span><span class="p">()</span>
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;Container command failed with exit code </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">:</span>
@@ -561,6 +563,7 @@ document.write(`
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
@@ -572,6 +575,7 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Must be implemented by a subclass&quot;</span><span class="p">)</span></div>
@@ -642,6 +646,7 @@ document.write(`
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
@@ -653,10 +658,12 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">name_args</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;--name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">]</span>
         <span class="n">user_args</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_user_args</span><span class="p">()</span> <span class="k">if</span> <span class="n">sync_uid</span> <span class="k">else</span> <span class="p">()</span>
+        <span class="n">stdin_args</span> <span class="o">=</span> <span class="p">()</span> <span class="k">if</span> <span class="n">stdin</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,)</span>
 
         <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="p">[</span>
@@ -666,6 +673,7 @@ document.write(`
                 <span class="o">*</span><span class="n">name_args</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
                 <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
+                <span class="o">*</span><span class="n">stdin_args</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">user_args</span><span class="p">,</span>
                 <span class="n">image</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">command</span><span class="p">,</span>
@@ -673,6 +681,7 @@ document.write(`
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">env</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_env</span><span class="p">(),</span>
+            <span class="nb">input</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="nd">@classmethod</span>
@@ -795,6 +804,7 @@ document.write(`
         <span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(),</span>
         <span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
+        <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
@@ -806,6 +816,7 @@ document.write(`
 <span class="sd">            mounts: Pairs of host folder and destination folder inside the container.</span>
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
+<span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Set Apptainer environment variables</span>
@@ -826,6 +837,7 @@ document.write(`
                 <span class="o">*</span><span class="n">command</span><span class="p">,</span>
             <span class="p">],</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="nb">input</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
