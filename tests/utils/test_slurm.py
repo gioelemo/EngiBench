@@ -165,7 +165,7 @@ def test_sbatch_map_reduce_with_exception(sbatch_exec: str) -> None:
     """Test if a fake slurm can process FakeProblem."""
 
     slurm_args = slurm.SlurmConfig(sbatch_executable=sbatch_exec)
-    invalid_design_id = ...
+    invalid_design_id = "INVALID"
 
     with pytest.raises(slurm.JobError) as exc_info:
         slurm.sbatch_map(
