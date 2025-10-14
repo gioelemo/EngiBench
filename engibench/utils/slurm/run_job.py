@@ -49,6 +49,7 @@ def map_job_group(work_dir: str, n_jobs: int) -> None:
                 pickle.dump(MemorizeModule(result), out_stream)
         except Exception as e:  # noqa: BLE001
             with open(result_path, "wb") as out_stream:
+                e.__traceback__ = None  # Python 3.13 now explicitly fails when trying to pickle the traceback
                 pickle.dump(JobError(e, "Run job array item", args), out_stream)
 
 
