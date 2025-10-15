@@ -462,6 +462,7 @@ document.write(`
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">traceback</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackSummary</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">traceback</span><span class="w"> </span><span class="kn">import</span> <span class="n">TracebackException</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeVar</span>
 
@@ -476,7 +477,7 @@ document.write(`
 <span class="sd">    - :attr:`origin` - Original exception instance.</span>
 <span class="sd">    - :attr:`context` - Info (string) about which step failed (e.g. map, reduce or save).</span>
 <span class="sd">    - :attr:`job_args` - dict containing the arguments passed to the job callback if the exception occurred during a job.</span>
-<span class="sd">    - :attr:`traceback` - `TracebackException &lt;https://docs.python.org/3/library/traceback.html#traceback.TracebackException&gt;`__ object.</span>
+<span class="sd">    - :attr:`traceback` - `TracebackException &lt;https://docs.python.org/3/library/traceback.html#traceback.TracebackException&gt;`_ object.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">origin</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -493,6 +494,24 @@ document.write(`
 <span class="si">{</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">format</span><span class="p">())</span><span class="si">}</span>
 <span class="s2">&quot;&quot;&quot;</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dump_with_job_error</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pickle objects to a file which might contain a :py:class:`JobError` instance.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+        <span class="n">pickler</span> <span class="o">=</span> <span class="n">TracebackPickler</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+        <span class="n">pickler</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TracebackPickler</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">Pickler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom pickler to avoid pickling code objects when pickling tracebacks.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reducer_override</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Custom reducer for StackSummary.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">StackSummary</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">StackSummary</span><span class="o">.</span><span class="n">from_list</span><span class="p">,</span> <span class="p">([(</span><span class="n">s</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">lineno</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">],)</span>
+        <span class="c1"># For any other object, fallback to usual reduction</span>
+        <span class="k">return</span> <span class="bp">NotImplemented</span>
 
 
 <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">11</span><span class="p">):</span>

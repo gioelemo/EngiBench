@@ -607,22 +607,10 @@ If the calling python scripts needs to load results from the jobs, <code class="
 
 <span class="c1"># To save resources, to render the docs no actual optimization is performed.</span>
 <span class="c1"># Instead optimize() is replaced by a method returning zeros:</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">reduced</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">reduced</span><span class="p">)</span> <span class="c1"># doctest: +ELLIPSIS</span>
 </pre></div>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]])]
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>[array([[0., ..., 0.]], shape=(100, 50)), ...]
 </pre></div>
 </div>
 <p><strong>Step 4b:</strong> Save all results in one <a class="reference external" href="https://docs.python.org/3/library/pickle.html">pickle</a> archive</p>
