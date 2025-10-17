@@ -427,35 +427,15 @@ class Airfoil(Problem[DesignType]):
 
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
-        try:
-            bash_command = (
-                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
-                + self.__docker_study_dir
-                + "/pre_process.py"
-                + " > "
-                + self.__docker_study_dir
-                + "/output_preprocess.log"
-            )
-            assert self.container_id is not None, "Container ID is not set"
-            container.run(
-                command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,
-                name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-                sync_uid=True,
-            )
-
-        except Exception as e:
-            # Verify output files exist
-            mesh_file = self.__local_study_dir + "/" + filename + ".cgns"
-            ffd_file = self.__local_study_dir + "/" + filename + "_ffd.xyz"
-            msg = ""
-
-            if not os.path.exists(mesh_file):
-                msg += f"Mesh file not generated: {mesh_file}."
-            if not os.path.exists(ffd_file):
-                msg += f"FFD file not generated: {ffd_file}."
-            raise RuntimeError(f"Pre-processing failed: {e!s}. {msg} Check logs in {self.__local_study_dir}") from e
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && python {self.__docker_study_dir}/pre_process.py"
+        assert self.container_id is not None, "Container ID is not set"
+        container.run(
+            command=["/bin/bash", "-c", bash_command],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            sync_uid=True,
+        )
 
         return filename
 
@@ -542,28 +522,15 @@ class Airfoil(Problem[DesignType]):
 
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
-        try:
-            bash_command = (
-                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
-                + str(mpicores)
-                + " python "
-                + self.__docker_study_dir
-                + "/airfoil_analysis.py > "
-                + self.__docker_study_dir
-                + "/output.log"
-            )
-            assert self.container_id is not None, "Container ID is not set"
-            container.run(
-                command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,
-                name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-                sync_uid=True,
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
-            ) from e
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_analysis.py"
+        assert self.container_id is not None, "Container ID is not set"
+        container.run(
+            command=["/bin/bash", "-c", bash_command],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            sync_uid=True,
+        )
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
@@ -615,28 +582,17 @@ class Airfoil(Problem[DesignType]):
             base_config,
         )
 
-        try:
-            # Launches a docker container with the optimize_airfoil.py script
-            # The script takes a mesh and ffd and performs an optimization
-            bash_command = (
-                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
-                + str(mpicores)
-                + " python "
-                + self.__docker_study_dir
-                + "/airfoil_opt.py > "
-                + self.__docker_study_dir
-                + "/airfoil_opt.log"
-            )
-            assert self.container_id is not None, "Container ID is not set"
-            container.run(
-                command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,
-                name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-                sync_uid=True,
-            )
-        except Exception as e:
-            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e
+        # Launches a docker container with the optimize_airfoil.py script
+        # The script takes a mesh and ffd and performs an optimization
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_opt.py"
+        assert self.container_id is not None, "Container ID is not set"
+        container.run(
+            command=["/bin/bash", "-c", bash_command],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            sync_uid=True,
+        )
 
         # post process -- extract the shape and objective values
         optisteps_history = []
