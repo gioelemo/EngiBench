@@ -53,7 +53,7 @@ def run(  # noqa: PLR0913
 Command: {" ".join(command)}
 stdout: {result.stdout.decode() if result.stdout else "No output"}
 stderr: {result.stderr.decode() if result.stderr else "No output"}"""
-        raise RuntimeError(msg) from e
+        raise RuntimeError(msg) from None
 
 
 class ContainerRuntime:
