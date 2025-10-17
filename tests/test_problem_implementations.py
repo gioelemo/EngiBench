@@ -100,7 +100,11 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
 
     # Test simulation outputs
     print(f"Simulating {problem_class.__name__}...")
-    objs = problem.simulate(design)
+    if problem_class.__module__.startswith("engibench.problems.airfoil"):
+        objs = problem.simulate(design, mpicores=1)  # type: ignore[call-arg]
+    else:
+        objs = problem.simulate(design)
+
     expected_obj_count = len(problem.objectives)
     assert objs.shape[0] == expected_obj_count, (
         f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "
