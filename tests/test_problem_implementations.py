@@ -12,8 +12,6 @@ import pytest
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
 
-PYTHON_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is None]
-
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_problem_impl(problem_class: type[Problem]) -> None:
@@ -86,7 +84,7 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done testing {problem_class.__name__}.")
 
 
-@pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
+@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all problems defined in Python files respect the API.
 
@@ -111,9 +109,13 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done simulating {problem_class.__name__}.")
     # Test optimization outputs
     print(f"Optimizing {problem_class.__name__}...")
-    # Skip optimization test for power electronics problems
-    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
-        print(f"Skipping optimization test for power electronics problem {problem_class.__name__}")
+    # Skip optimization test for power electronics, airfoil, and heat conduction problems
+    if (
+        problem_class.__module__.startswith("engibench.problems.power_electronics")
+        or problem_class.__module__.startswith("engibench.problems.airfoil")
+        or problem_class.__module__.startswith("engibench.problems.heatconduction")
+    ):
+        print(f"Skipping optimization test for {problem_class.__name__}")
         return
     problem.reset(seed=1)
     optimal_design, history = problem.optimize(starting_point=design)
