@@ -19,6 +19,7 @@ import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
 import importlib
+import json
 import os
 import shutil
 import sys
@@ -38,13 +39,13 @@ from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.airfoil.pyopt_history import History
+from engibench.problems.airfoil.templates import cli_interface
 from engibench.problems.airfoil.utils import calc_area
 from engibench.problems.airfoil.utils import calc_off_wall_distance
 from engibench.problems.airfoil.utils import reorder_coords
 from engibench.problems.airfoil.utils import scale_coords
 from engibench.utils import container
 from engibench.utils.files import clone_dir
-from engibench.utils.files import replace_template_values
 
 # Allow loading pyoptsparse histories even if pyoptsparse is not installed:
 if importlib.util.find_spec("pyoptsparse") is None:
@@ -289,7 +290,9 @@ class Airfoil(Problem[DesignType]):
             float, bounded(lower=0.0).category(IMPL), bounded(lower=1e5, upper=1e9).warning().category(IMPL)
         ] = 1e6
         area_initial: float | None = None
+        """actual initial airfoil area"""
         area_ratio_min: Annotated[float, bounded(lower=0.0, upper=1.2).category(THEORY)] = 0.7
+        """Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target"""
         cl_target: float = 0.5
 
     conditions = Conditions()
@@ -304,8 +307,8 @@ class Airfoil(Problem[DesignType]):
         use_altitude: bool = False
         output_dir: str | None = None
         mesh_fname: str | None = None
-        task: str = "'analysis'"
-        opt: str = "'SLSQP'"
+        task: str = "analysis"
+        opt: str = "SLSQP"
         opt_options: dict = field(default_factory=dict)
         ffd_fname: str | None = None
         area_input_design: float | None = None
@@ -364,7 +367,9 @@ class Airfoil(Problem[DesignType]):
         self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
-    def __design_to_simulator_input(self, design: DesignType, config: dict[str, Any], filename: str = "design") -> str:
+    def __design_to_simulator_input(
+        self, design: DesignType, mach: float, reynolds: float, temperature: float, filename: str = "design"
+    ) -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
@@ -372,7 +377,9 @@ class Airfoil(Problem[DesignType]):
 
         Args:
             design (dict): The design to convert.
-            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
+            mach: mach number
+            reynolds: reynolds number
+            temperature: temperature
             filename (str): The filename to save the design to.
         """
         # Creates the study directory
@@ -382,52 +389,38 @@ class Airfoil(Problem[DesignType]):
 
         # Calculate the off-the-wall distance
         estimate_s0 = True
-        if estimate_s0:
-            s0 = calc_off_wall_distance(
-                mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
-            )
-        else:
-            s0 = 1e-5
-        base_config = {
-            "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
-            "tmp_xyz_fname": f"'{tmp}'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
-            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
-            "marchDist": 100.0,  # Distance to march the grid from the airfoil surface
-            "N_sample": 180,
-            "nTEPts": 4,
-            "xCut": 0.99,
-            "ffd_ymarginu": 0.05,
-            "ffd_ymarginl": 0.05,
-            "ffd_pts": 10,
-            "N_grid": 100,
-            "estimate_s0": estimate_s0,
-            "make_input_design_blunt": True,
-            "input_blunted": False,
-            "s0": s0,
-            **dataclasses.asdict(self.Conditions()),
-        }
 
+        s0 = calc_off_wall_distance(mach=mach, reynolds=reynolds, freestreamTemp=temperature) if estimate_s0 else 1e-5
         # Scale the design to fit in the design space
+        x_cut = 0.99
         scaled_design, input_blunted = scale_coords(
             design["coords"],
-            blunted=bool(base_config["input_blunted"]),
-            xcut=base_config["xCut"],
+            blunted=False,
+            xcut=x_cut,
         )
-        base_config["input_blunted"] = input_blunted
+        args = cli_interface.PreprocessParameters(
+            design_fname=f"{self.__docker_study_dir}/{filename}.dat",
+            tmp_xyz_fname=tmp,
+            mesh_fname=self.__docker_study_dir + "/" + filename + ".cgns",
+            ffd_fname=self.__docker_study_dir + "/" + filename + "_ffd",
+            N_sample=180,
+            n_tept_s=4,
+            x_cut=x_cut,
+            ffd_ymarginu=0.05,
+            ffd_ymarginl=0.05,
+            ffd_pts=10,
+            N_grid=100,
+            s0=s0,
+            input_blunted=input_blunted,
+            march_dist=100.0,
+        )
 
         # Save the design to a temporary file. Format to 1e-6 rounding
         np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
 
-        # Prepares the preprocess.py script with the design
-        replace_template_values(
-            self.__local_study_dir + "/pre_process.py",
-            base_config,
-        )
-
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
-        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && python {self.__docker_study_dir}/pre_process.py"
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && python {self.__docker_study_dir}/pre_process.py '{json.dumps(dataclasses.asdict(args))}'"
         assert self.container_id is not None, "Container ID is not set"
         container.run(
             command=["/bin/bash", "-c", bash_command],
@@ -503,26 +496,24 @@ class Airfoil(Problem[DesignType]):
         # pre-process the design and run the simulation
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
-        base_config = {
-            "alpha": design["angle_of_attack"],
-            "altitude": 10000,
-            "temperature": 300,
-            "use_altitude": False,
-            "output_dir": "'" + self.__docker_study_dir + "/output/'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
-            "task": "'analysis'",
-            **dataclasses.asdict(self.Conditions()),
-            **(config or {}),
-        }
-        self.__design_to_simulator_input(design, base_config)
-        replace_template_values(
-            self.__local_study_dir + "/airfoil_analysis.py",
-            base_config,
+        conditions = self.Conditions()
+        config = config or {}
+        args = cli_interface.AnalysisParameters(
+            alpha=design["angle_of_attack"],
+            altitude=config.get("altitude", 10000),
+            temperature=config.get("temperature", 300),
+            reynolds=config.get("reynolds", conditions.reynolds),
+            mach=config.get("mach", conditions.mach),
+            use_altitude=config.get("use_altitude", False),
+            output_dir=config.get("output_dir", self.__docker_study_dir + "/output/"),
+            mesh_fname=config.get("mesh_fname", self.__docker_study_dir + "/design.cgns"),
+            task=cli_interface.Task[config["task"]] if "task" in config else cli_interface.Task.ANALYSIS,
         )
+        self.__design_to_simulator_input(design, mach=args.mach, reynolds=args.reynolds, temperature=args.temperature)
 
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
-        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_analysis.py"
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_analysis.py '{json.dumps(args.to_dict())}'"
         assert self.container_id is not None, "Container ID is not set"
         container.run(
             command=["/bin/bash", "-c", bash_command],
@@ -557,34 +548,31 @@ class Airfoil(Problem[DesignType]):
         filename = "candidate_design"
 
         # Prepares the optimize_airfoil.py script with the optimization configuration
-        base_config = {
-            "cl_target": 0.5,
-            "alpha": starting_point["angle_of_attack"],
-            "mach": 0.75,
-            "reynolds": 1e6,
-            "altitude": 10000,
-            "temperature": 300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            "use_altitude": False,
-            "area_initial": None,  # actual initial airfoil area
-            "area_ratio_min": 0.7,  # Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target
-            "opt": "'SLSQP'",
-            "opt_options": {},
-            "output_dir": "'" + self.__docker_study_dir + "/output/'",
-            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
-            "area_input_design": calc_area(starting_point["coords"]),
+        fields = {f.name for f in dataclasses.fields(cli_interface.OptimizeParameters)}
+        config = {key: val for key, val in (config or {}).items() if key in fields}
+        if "opt" in config:
+            config["opt"] = cli_interface.Algorithm[config["opt"]]
+        args = cli_interface.OptimizeParameters(
             **dataclasses.asdict(self.Conditions()),
-            **(config or {}),
-        }
-        self.__design_to_simulator_input(starting_point, base_config, filename)
-        replace_template_values(
-            self.__local_study_dir + "/airfoil_opt.py",
-            base_config,
+            alpha=starting_point["angle_of_attack"],
+            altitude=10000,
+            temperature=300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            use_altitude=False,
+            opt=cli_interface.Algorithm.SLSQP,
+            opt_options={},
+            output_dir=self.__docker_study_dir + "/output",
+            ffd_fname=self.__docker_study_dir + "/" + filename + "_ffd.xyz",
+            mesh_fname=self.__docker_study_dir + "/" + filename + ".cgns",
+            area_input_design=calc_area(starting_point["coords"]),
+            **config,
+        )
+        self.__design_to_simulator_input(
+            starting_point, reynolds=args.reynolds, mach=args.reynolds, temperature=args.temperature, filename=filename
         )
 
         # Launches a docker container with the optimize_airfoil.py script
         # The script takes a mesh and ffd and performs an optimization
-        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_opt.py"
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_opt.py '{json.dumps(args.to_dict())}'"
         assert self.container_id is not None, "Container ID is not set"
         container.run(
             command=["/bin/bash", "-c", bash_command],

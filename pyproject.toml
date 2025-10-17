@@ -106,7 +106,6 @@ exclude = [
     "dist",
     "node_modules",
     "site-packages",
-    "templates",
     "venv",
     "docs",
 ]
@@ -190,7 +189,7 @@ order-by-type = false
     "TRY",      # tryceratops
 
 ]
-"**/templates/**/*.py" = ["ALL"]
+"**/heatconduction*/templates/**/*.py" = ["ALL"]
 
 
 ###################################### FORMAT ########################################
@@ -244,9 +243,6 @@ warn_unused_ignores = true
 files = ["engibench/", "tests/"]
 exclude = [
   "^build/",
-  "^templates/.*",
-  "templates/.*",
-  ".*/templates/.*",
   "^engibench_studies/problems/airfoil/study_[^/]*/",
   "^engibench/problems/airfoil/pyopt_history.py",
   "^docs/",
