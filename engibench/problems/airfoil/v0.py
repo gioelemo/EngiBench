@@ -262,7 +262,10 @@ class Airfoil(Problem[DesignType]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("cd", ObjectiveDirection.MINIMIZE),)
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
+        ("cd", ObjectiveDirection.MINIMIZE),
+        ("cl", ObjectiveDirection.MAXIMIZE),
+    )
 
     design_space = spaces.Dict(
         {
