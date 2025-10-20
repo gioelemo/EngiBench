@@ -2,6 +2,7 @@
 
 import dataclasses
 import inspect
+import sys
 from typing import get_args, get_origin
 
 import gymnasium
@@ -11,6 +12,9 @@ import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
+
+PYTHON_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is None]
+CONTAINER_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is not None]
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
@@ -84,7 +88,10 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done testing {problem_class.__name__}.")
 
 
-@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
+@pytest.mark.parametrize(
+    "problem_class",
+    PYTHON_PROBLEMS + (CONTAINER_PROBLEMS if sys.platform.startswith("linux") else []),
+)
 def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all problems defined in Python files respect the API.
 
