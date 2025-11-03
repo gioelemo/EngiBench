@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
 """This script sets up and initializes the design problem for a finite element analysis using dolfin adjoint based on SIMP method.
+
 It defines the resolution, reads the design variables, and writes out the initial design to a file.
 """
 
-import os
+from fenics import Constant
+from fenics import FunctionSpace
+from fenics import interpolate
+from fenics import UnitSquareMesh
+from fenics import XDMFFile
 import numpy as np
-from fenics import *
-from engibench.utils.cli import np_array_from_stdin, cast_argv
+
+from engibench.utils.cli import cast_argv
 
 # Extract parameters
 # NN: Resolution of the grid (arbitrary, affects performance)
@@ -44,8 +49,8 @@ if __name__ == "__main__":
 
     # Populate the results array with the mesh coordinates and the corresponding volume value
     ind = 0
-    for xs in x_values:
-        for ys in y_values:
+    for _xs in x_values:
+        for _ys in y_values:
             results[ind, 0] = V  # Store the volume value
             ind += 1
     results = results.reshape(NN + 1, NN + 1)

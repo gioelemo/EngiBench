@@ -1,15 +1,41 @@
 #!/usr/bin/env python3
 
 """This script evaluates the design using finite element analysis with dolfin-adjoint based on the SIMP method.
+
 It sets up the computational domain, reads the design variables, solves the forward heat conduction problem,
 and saves performance (thermal conductivity) metric.
 """
 
+import glob
 import os
+
+from fenics import dof_to_vertex_map
+from fenics import dx
+from fenics import FunctionSpace
+from fenics import grad
+from fenics import inner
+from fenics import MPI
+from fenics import parameters
+from fenics import SubDomain
+from fenics import TestFunction
+from fenics import XDMFFile
+from fenics_adjoint import assemble
+from fenics_adjoint import Constant
+from fenics_adjoint import Control
+from fenics_adjoint import DirichletBC
+from fenics_adjoint import Function
+from fenics_adjoint import InequalityConstraint
+from fenics_adjoint import interpolate
+from fenics_adjoint import IPOPTSolver
+from fenics_adjoint import MinimizationProblem
+from fenics_adjoint import ReducedFunctional
+from fenics_adjoint import solve
+from fenics_adjoint import UnitCubeMesh
 import numpy as np
-from fenics import *
-from fenics_adjoint import *
-from engibench.utils.cli import np_array_from_stdin, cast_argv
+from pyadjoint.reduced_functional_numpy import set_local
+
+from engibench.utils.cli import cast_argv
+from engibench.utils.cli import np_array_from_stdin
 
 # Extract parameters
 # NN: Grid size
@@ -82,7 +108,8 @@ lb_2, ub_2 = 0.5 - width / 2, 0.5 + width / 2
 class BoundaryConditions(SubDomain):
     """Defines Dirichlet boundary conditions on specific edges."""
 
-    def inside(self, x, on_boundary):
+    def inside(self, x, _on_boundary):
+        """True if in the interior of the domain."""
         return (
             (x[2] > 0 and x[0] == 0)
             or (x[2] > 0 and x[0] == 1)
@@ -111,6 +138,7 @@ parameters["form_compiler"]["cpp_optimize_flags"] = "-O3 -ffast-math -march=nati
 
 def forward(a):
     """Solve the heat conduction PDE given a material distribution 'a'."""
+    # ruff: noqa: N806
     T = Function(P, name="Temperature")
     v = TestFunction(P)
 
@@ -160,6 +188,7 @@ lb, ub = 0.0, 1.0
 class VolumeConstraint(InequalityConstraint):
     """Constraint to maintain volume fraction."""
 
+    # ruff: noqa: N803
     def __init__(self, V):
         self.V = float(V)
         self.smass = assemble(TestFunction(A) * Constant(1) * dx)
@@ -167,17 +196,16 @@ class VolumeConstraint(InequalityConstraint):
 
     def function(self, m):
         """Compute volume constraint value."""
-        from pyadjoint.reduced_functional_numpy import set_local
-
         set_local(self.tmpvec, m)
         integral = self.smass.inner(self.tmpvec.vector())
         return [self.V - integral] if MPI.rank(MPI.comm_world) == 0 else []
 
-    def jacobian(self, m):
+    def jacobian(self, _m):
         """Compute Jacobian of volume constraint."""
         return [-self.smass]
 
     def output_workspace(self):
+        """Return an object like the output of c(m) for calculations."""
         return [0.0]
 
     def length(self):
@@ -229,9 +257,10 @@ np.save(output_npy, results)
 
 # Save performance metric
 with open(output_path, "w") as f:
-    f.write("%.14f" % J_CONTROL.tape_value())
+    f.write(f"{J_CONTROL.tape_value():.14f}")
 
 # Clean up temporary files
-os.system("rm /home/fenics/shared/templates/RES_SIM/TEMP*")
+for f in glob.glob("/home/fenics/shared/templates/RES_SIM/TEMP*"):
+    os.remove(f)
 
 print(f"Optimization complete: v={vol_f}, w={width}")

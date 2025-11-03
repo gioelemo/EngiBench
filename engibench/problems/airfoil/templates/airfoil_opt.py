@@ -12,7 +12,7 @@ import sys
 
 from adflow import ADFLOW
 from baseclasses import AeroProblem
-from cli_interface import Algorithm
+from cli_interface import Algorithm  # type:ignore[import-not-found]
 from cli_interface import OptimizeParameters
 from idwarp import USMesh
 from mpi4py import MPI

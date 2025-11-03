@@ -67,7 +67,7 @@ class OptimizeParameters:
     reynolds: float
     """Reynolds number"""
     temperature: float
-    """Temerature"""
+    """Temperature"""
     altitude: int
     """The cruising altitude"""
     area_ratio_min: float

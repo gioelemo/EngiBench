@@ -11,7 +11,7 @@ from typing import Any
 
 from adflow import ADFLOW
 from baseclasses import AeroProblem
-from cli_interface import AnalysisParameters
+from cli_interface import AnalysisParameters  # type:ignore[import-not-found]
 from cli_interface import Task
 from mpi4py import MPI
 import numpy as np
