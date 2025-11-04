@@ -553,18 +553,20 @@ class Airfoil(Problem[DesignType]):
         if "opt" in config:
             config["opt"] = cli_interface.Algorithm[config["opt"]]
         args = cli_interface.OptimizeParameters(
-            **dataclasses.asdict(self.Conditions()),
-            alpha=starting_point["angle_of_attack"],
-            altitude=10000,
-            temperature=300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            use_altitude=False,
-            opt=cli_interface.Algorithm.SLSQP,
-            opt_options={},
-            output_dir=self.__docker_study_dir + "/output",
-            ffd_fname=self.__docker_study_dir + "/" + filename + "_ffd.xyz",
-            mesh_fname=self.__docker_study_dir + "/" + filename + ".cgns",
-            area_input_design=calc_area(starting_point["coords"]),
-            **config,
+            **{
+                **dataclasses.asdict(self.Conditions()),
+                "alpha": starting_point["angle_of_attack"],
+                "altitude": 10000,
+                "temperature": 300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+                "use_altitude": False,
+                "opt": cli_interface.Algorithm.SLSQP,
+                "opt_options": {},
+                "output_dir": self.__docker_study_dir + "/output",
+                "ffd_fname": self.__docker_study_dir + "/" + filename + "_ffd.xyz",
+                "mesh_fname": self.__docker_study_dir + "/" + filename + ".cgns",
+                "area_input_design": calc_area(starting_point["coords"]),
+                **config,
+            },
         )
         self.__design_to_simulator_input(
             starting_point, reynolds=args.reynolds, mach=args.reynolds, temperature=args.temperature, filename=filename
