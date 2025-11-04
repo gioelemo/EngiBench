@@ -289,7 +289,7 @@ class Airfoil(Problem[DesignType]):
         reynolds: Annotated[
             float, bounded(lower=0.0).category(IMPL), bounded(lower=1e5, upper=1e9).warning().category(IMPL)
         ] = 1e6
-        area_initial: float | None = None
+        area_initial: float = float("NAN")
         """actual initial airfoil area"""
         area_ratio_min: Annotated[float, bounded(lower=0.0, upper=1.2).category(THEORY)] = 0.7
         """Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target"""
@@ -315,12 +315,12 @@ class Airfoil(Problem[DesignType]):
 
         @constraint(categories=THEORY)
         @staticmethod
-        def area_ratio_bound(area_ratio_min: float, area_initial: float | None, area_input_design: float | None) -> None:
+        def area_ratio_bound(area_ratio_min: float, area_initial: float, area_input_design: float | None) -> None:
             """Constraint for area_ratio_min <= area_ratio <= 1.2."""
             area_ratio_max = 1.2
             if area_input_design is None:
                 return
-            assert area_initial is not None
+            assert not np.isnan(area_initial)
             area_ratio = area_input_design / area_initial
             assert area_ratio_min <= area_ratio <= area_ratio_max, (
                 f"Config.area_ratio: {area_ratio} ∉ [area_ratio_min={area_ratio_min}, 1.2]"
@@ -550,6 +550,8 @@ class Airfoil(Problem[DesignType]):
         # Prepares the optimize_airfoil.py script with the optimization configuration
         fields = {f.name for f in dataclasses.fields(cli_interface.OptimizeParameters)}
         config = {key: val for key, val in (config or {}).items() if key in fields}
+        if "area_initial" not in config:
+            raise ValueError("optimize(): config is missing the required parameter 'area_initial'")
         if "opt" in config:
             config["opt"] = cli_interface.Algorithm[config["opt"]]
         args = cli_interface.OptimizeParameters(
