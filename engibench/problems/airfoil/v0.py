@@ -363,7 +363,7 @@ class Airfoil(Problem[DesignType]):
             shutil.rmtree(self.__local_study_dir)
 
         super().reset(seed)
-        self.current_study = f"study_{self.seed}"
+        self.current_study = f"study_{self.seed}-pid{os.getpid()}"
         self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
