@@ -192,7 +192,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
         return np.array([DcGain, VoltageRipple])
 
-    def optimize(self, _starting_point: npt.NDArray, _config: dict[str, Any] | None = None) -> NoReturn:
+    def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] | None = None) -> NoReturn:
         """Optimize the design variable. Not applicable for this problem."""
         raise NotImplementedError("Not yet implemented")
 

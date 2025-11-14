@@ -106,7 +106,6 @@ exclude = [
     "dist",
     "node_modules",
     "site-packages",
-    "templates",
     "venv",
     "docs",
 ]
@@ -190,7 +189,6 @@ order-by-type = false
     "TRY",      # tryceratops
 
 ]
-"**/templates/**/*.py" = ["ALL"]
 
 
 ###################################### FORMAT ########################################
@@ -223,7 +221,7 @@ docstring-code-line-length = "dynamic"
 ###################################### PYRIGHT ########################################
 [tool.pyright]
 include = ["engibench/**"]
-exclude = ["**/node_modules", "**/__pycache__", "**/templates/**", "**/study*", "**/pyopt_history.py"]
+exclude = ["**/node_modules", "**/__pycache__", "**/study*", "**/pyopt_history.py"]
 strict = []
 
 typeCheckingMode = "basic"
@@ -244,9 +242,6 @@ warn_unused_ignores = true
 files = ["engibench/", "tests/"]
 exclude = [
   "^build/",
-  "^templates/.*",
-  "templates/.*",
-  ".*/templates/.*",
   "^engibench_studies/problems/airfoil/study_[^/]*/",
   "^engibench/problems/airfoil/pyopt_history.py",
   "^docs/",
@@ -273,5 +268,12 @@ module = [
     "ceviche.*",
     "sqlitedict",
     "sqlitedict.*",
+    "pyadjoint.*",
+    "adflow",
+    "baseclasses",
+    "idwarp",
+    "mpi4py",
+    "multipoint",
+    "pygeo",
 ]
 ignore_missing_imports = true

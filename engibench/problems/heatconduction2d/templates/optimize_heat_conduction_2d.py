@@ -1,28 +1,49 @@
 #!/usr/bin/env python3
 
 """Topology optimization for heat conduction using the SIMP method with dolfin-adjoint.
+
 The script reads initial design data, solves the heat conduction problem, and optimizes
 material distribution to minimize thermal complaicen under a volume constraint.
 """
 
-import sys
+import glob
+import importlib
 import os
-from io import BytesIO
 import re
+
+from fenics import dof_to_vertex_map
+from fenics import dx
+from fenics import File
+from fenics import FunctionSpace
+from fenics import grad
+from fenics import inner
+from fenics import MPI
+from fenics import SubDomain
+from fenics import TestFunction
+from fenics import XDMFFile
+from fenics_adjoint import assemble
+from fenics_adjoint import Constant
+from fenics_adjoint import Control
+from fenics_adjoint import DirichletBC
+from fenics_adjoint import Function
+from fenics_adjoint import InequalityConstraint
+from fenics_adjoint import interpolate
+from fenics_adjoint import IPOPTSolver
+from fenics_adjoint import MinimizationProblem
+from fenics_adjoint import ReducedFunctional
+from fenics_adjoint import solve
+from fenics_adjoint import UnitSquareMesh
 import numpy as np
-from fenics import *
-from fenics_adjoint import *
-from typing import Any
-from engibench.utils.cli import np_array_from_stdin, cast_argv
+from pyadjoint.reduced_functional_numpy import set_local
+
+from engibench.utils.cli import cast_argv
+from engibench.utils.cli import np_array_from_stdin
 
 # Ensure IPOPT is available
-try:
-    from pyadjoint import ipopt
-except ImportError:
-    print("""This example depends on IPOPT and Python ipopt bindings. \
+if importlib.util.find_spec("pyadjoint.ipopt") is None:
+    raise ImportError("""This example depends on IPOPT and Python ipopt bindings. \
     When compiling IPOPT, make sure to link against HSL, as it \
     is a necessity for practical problems.""")
-    raise
 
 
 # Extract parameters
@@ -92,7 +113,8 @@ lb_2, ub_2 = 0.5 - width / 2, 0.5 + width / 2
 class BoundaryConditions(SubDomain):
     """Defines Dirichlet boundary conditions on specific edges."""
 
-    def inside(self, x, on_boundary):
+    def inside(self, x, _on_boundary):
+        """True if in the interior of the domain."""
         return x[0] == 0.0 or x[1] == 1.0 or x[0] == 1.0 or (x[1] == 0.0 and (x[0] < lb_2 or x[0] > ub_2))
 
 
@@ -109,6 +131,7 @@ f = interpolate(Constant(1.0e-2), P)  # Default source term
 # -------------------------------
 def forward(a):
     """Solve the heat conduction PDE given a material distribution 'a'."""
+    # ruff: noqa: N806
     T = Function(P, name="Temperature")
     v = TestFunction(P)
 
@@ -146,6 +169,7 @@ lb, ub = 0.0, 1.0
 class VolumeConstraint(InequalityConstraint):
     """Constraint to maintain volume fraction."""
 
+    # ruff: noqa: N803
     def __init__(self, V):
         self.V = float(V)
         self.smass = assemble(TestFunction(A) * Constant(1) * dx)
@@ -153,17 +177,16 @@ class VolumeConstraint(InequalityConstraint):
 
     def function(self, m):
         """Compute volume constraint value."""
-        from pyadjoint.reduced_functional_numpy import set_local
-
         set_local(self.tmpvec, m)
         integral = self.smass.inner(self.tmpvec.vector())
         return [self.V - integral] if MPI.rank(MPI.comm_world) == 0 else []
 
-    def jacobian(self, m):
+    def jacobian(self, _m):
         """Compute Jacobian of volume constraint."""
         return [-self.smass]
 
     def output_workspace(self):
+        """Return an object like the output of c(m) for calculations."""
         return [0.0]
 
     def length(self):
@@ -189,15 +212,13 @@ a_opt = solver.solve()
 objective_values = []
 
 # Open and read the log file
-with open(log_filename, "r") as f:
+with open(log_filename) as f:
     for line in f:
         # Match lines that start with an iteration number followed by an objective value
         match = re.match(r"^\s*\d+\s+([-+]?\d*\.\d+e[-+]?\d+)", line)
         if match:
             objective_values.append(float(match.group(1)))  # Extract and convert to float
 
-# Convert to NumPy array
-objective_values = np.array(objective_values)
 # Save optimized design
 mesh_output = UnitSquareMesh(NN, NN)
 V_output = FunctionSpace(mesh_output, "CG", 1)
@@ -216,7 +237,8 @@ output_npy = os.path.join(output_dir, f"hr_data_v_v={vol_f}_w={width}.npy")
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(MPI.comm_world, os.path.join(output_dir, f"final_solution_v={vol_f}_w={width}_.xdmf"))
 xdmf_filename.write(a_opt)
-print("v=" + "{}".format(vol_f))
-print("w=" + "{}".format(width))
-np.savez(output_path, design=RES_OPTults, OptiStep=objective_values)
-os.system("rm /home/fenics/shared/templates/RES_OPT/TEMP*")
+print("v={vol_f}")
+print("w={width}")
+np.savez(output_path, design=RES_OPTults, OptiStep=np.array(objective_values))
+for f in glob.glob("/home/fenics/shared/templates/RES_OPT/TEMP*"):
+    os.remove(f)
