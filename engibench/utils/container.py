@@ -124,9 +124,9 @@ def runtime() -> type[ContainerRuntime] | None:
         Class object of the first available container runtime or the container runtime selected by the
         `CONTAINER_RUNTIME` environment variable if set.
     """
-    runtimes_by_name = {rt.name: rt for rt in RUNTIMES}
+    runtimes_by_name = {rt.name.lower(): rt for rt in RUNTIMES}
     rt_name = os.environ.get("CONTAINER_RUNTIME")
-    rt = runtimes_by_name.get(rt_name) if rt_name is not None else None
+    rt = runtimes_by_name.get(rt_name.lower()) if rt_name is not None else None
     if rt is not None:
         return rt
     for rt in RUNTIMES:
