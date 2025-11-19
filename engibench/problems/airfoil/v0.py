@@ -14,8 +14,8 @@ import sys
 from typing import Annotated, Any
 
 from gymnasium import spaces
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
