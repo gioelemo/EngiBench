@@ -1,18 +1,6 @@
 """Airfoil problem.
 
 Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
-
-             .:-===+=+==-:
-     .==.                        .:-++=:....
- .-:                                           .:--:::.
--            Airfoil v.0                        :====--:-===
-:-                                    .:==:.
-   .-::.                     ::::-:.
-          ..::::----::::..
-
-+-+-+-+-+-+-+-+-+-+
-|E|n|g|i|B|e|n|c|h|
-+-+-+-+-+-+-+-+-+-+
 """
 
 import dataclasses
@@ -26,6 +14,7 @@ import sys
 from typing import Annotated, Any
 
 from gymnasium import spaces
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -610,7 +599,7 @@ class Airfoil(Problem[DesignType]):
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Any:
+    def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Figure:
         """Renders the design in a human-readable format.
 
         Args:
@@ -619,7 +608,7 @@ class Airfoil(Problem[DesignType]):
             save (bool): If True, saves the rendered design to a file in the study directory.
 
         Returns:
-            Any: The rendered design.
+            Figure: The rendered design.
         """
         fig, ax = plt.subplots()
         coords = design["coords"]
@@ -635,7 +624,7 @@ class Airfoil(Problem[DesignType]):
         if save:
             plt.savefig(self.__local_study_dir + "/airfoil.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
-        return fig, ax
+        return fig
 
     def render_optisteps(self, optisteps_history: list[OptiStep], *, open_window: bool = False, save: bool = False) -> Any:
         """Renders the optimization step history.

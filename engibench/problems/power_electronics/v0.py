@@ -8,6 +8,7 @@ import os
 from typing import Any, NoReturn
 
 from gymnasium import spaces
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -196,18 +197,21 @@ class PowerElectronics(Problem[npt.NDArray]):
         """Optimize the design variable. Not applicable for this problem."""
         raise NotImplementedError("Not yet implemented")
 
-    def render(self, design: npt.NDArray, *, open_window: bool = False) -> None:  # noqa: ARG002
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Figure:  # noqa: ARG002
         """Render the circuit topology using NetworkX.
 
         It displays the Graph of the circuit topology rather than the circuit diagram.
         Each circuit element (V, L, C, etc.) is a node. Each wire/port is also a node.
         """
         _, _, _, G = parse_topology(self.config)
-        plt.figure()
+        fig = plt.figure()
         node_colors = [G.nodes[n]["color"] for n in G.nodes()]
         pos = nx.spring_layout(G)
         nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=200, font_size=10)
-        plt.show()
+        if open_window:
+            plt.show()
+        plt.close(fig)
+        return fig
 
     def random_design(self, dataset_split: str = "train", design_key: str = "initial_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random initial design.
