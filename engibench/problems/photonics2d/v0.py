@@ -24,6 +24,7 @@ from ceviche import fdfd_ez
 from ceviche import jacobian
 from ceviche.optimizers import adam_optimize
 from gymnasium import spaces
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -609,7 +610,7 @@ class Photonics2D(Problem[npt.NDArray]):
         return rho_optimum.astype(np.float32), opti_steps_history
 
     # --- render method remains the same as previous version ---
-    def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Figure:
         """Renders the design (rho) and the resulting E-field magnitudes.
 
            Runs a simulation for the provided design to get the fields for plotting.
@@ -623,7 +624,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
 
         Returns:
-            plt.Figure: The matplotlib Figure object containing three plots:
+            Figure: The matplotlib Figure object containing three plots:
                         |Ez| at omega1, |Ez| at omega2, and Permittivity (eps_r).
         """
         conditions = self._setup_simulation(config)

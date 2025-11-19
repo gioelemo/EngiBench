@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from gymnasium import spaces
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -235,7 +236,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
-    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Figure:
         """Renders the design in a human-readable format.
 
         Args:
@@ -243,7 +244,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
-            Any: The rendered design.
+            Figure: The rendered design.
         """
         if design is None:
             design = self.initialize_design()
@@ -255,7 +256,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
         if open_window:
             plt.show()
-        return fig, ax
+        return fig
 
 
 # Check if the script is run directly

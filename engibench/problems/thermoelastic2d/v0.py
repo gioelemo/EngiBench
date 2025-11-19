@@ -7,6 +7,7 @@ from typing import Annotated, Any, ClassVar
 
 from gymnasium import spaces
 from matplotlib import colors
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -198,7 +199,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         opti_steps = results["opti_steps"]
         return design, opti_steps
 
-    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Figure:
         """Renders the design in a human-readable format.
 
         Args:
@@ -206,7 +207,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
-            Any: The rendered design.
+            Figure: The rendered design.
         """
         fig, ax = plt.subplots(1, 1, figsize=(7, 7))
         ax.imshow(-design, cmap="gray", interpolation="none", norm=colors.Normalize(vmin=-1, vmax=0))
