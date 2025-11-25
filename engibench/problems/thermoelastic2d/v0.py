@@ -218,16 +218,20 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
         return fig
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
 
+        Args:
+            dataset_split (str): The key for the dataset to sample from.
+            design_key (str): The key for the design to sample from.
+
         Returns:
-            DesignType: The valid random design.
+            Tuple of:
+                np.ndarray: The valid random design.
+                int: The random index selected.
         """
-        boundary_dict = dataclasses.asdict(self.conditions)
-        volfrac = boundary_dict["volfrac"]
-        design = volfrac * np.ones((NELX, NELY))
-        return design, 0
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split]), dtype=int)
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
 if __name__ == "__main__":
@@ -237,7 +241,7 @@ if __name__ == "__main__":
     # --- Load the problem dataset
     dataset = problem.dataset
     first_item = dataset["train"][0]
-    first_item_design = np.array(first_item["design"])
+    first_item_design = np.array(first_item["optimal_design"])
     problem.render(first_item_design, open_window=True)
 
     # --- Render the design
