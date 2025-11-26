@@ -103,7 +103,6 @@ def mmasub(inputs: MMAInputs) -> tuple[NDArray[np.float64], NDArray[np.float64],
     asymax = 0.2
     asymin = 0.01
 
-
     xmma, _, _, _, _, _, _, _, _, low, up = external_mmasub(
         m,
         n,

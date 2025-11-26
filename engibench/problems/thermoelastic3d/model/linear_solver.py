@@ -9,10 +9,7 @@ from scipy.sparse.linalg import spsolve
 
 
 def solve_spd_with_amg(
-    a: csr_matrix,
-    b: NDArray[np.float64],
-    tol: float = 1e-8,
-    maxiter: int | None = None
+    a: csr_matrix, b: NDArray[np.float64], tol: float = 1e-8, maxiter: int | None = None
 ) -> NDArray[np.float64]:
     """Solves a symmetric positive-definite linear system using AMG-preconditioned CG.
 
@@ -43,10 +40,7 @@ def solve_spd_with_amg(
     return x
 
 
-def solve_with_spsolve(
-    a: csr_matrix,
-    b: NDArray[np.float64]
-) -> NDArray[np.float64]:
+def solve_with_spsolve(a: csr_matrix, b: NDArray[np.float64]) -> NDArray[np.float64]:
     """Solves a sparse linear system using SciPy's direct sparse solver.
 
     This function computes the solution of a sparse linear system using a direct

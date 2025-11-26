@@ -83,6 +83,7 @@ class FeaModel3D:
                 - `h` (csr_matrix): A sparse matrix that represents the filtering operation.
                 - `hs` (np.ndarray): A normalization factor for the filtering.
         """
+
         def e_index(ix: int, iy: int, iz: int) -> int:
             """Returns the global index of an element given its coordinates.
 
@@ -163,7 +164,7 @@ class FeaModel3D:
         """
         # Weighting
         w1 = bcs.get("weight", 0.5)  # structural
-        w2 = 1.0 - w1                # thermal
+        w2 = 1.0 - w1  # thermal
 
         # Derive mesh sizes from fixed_elements mask (shape: (nelx+1, nely+1, nelz+1))
         fixed_nodes_mask = np.asarray(bcs["fixed_elements"], dtype=bool)
@@ -181,13 +182,13 @@ class FeaModel3D:
         x = self.get_initial_design(volfrac, nelx, nely, nelz) if x_init is None else x_init.copy()
 
         # 2. Parameters
-        penal = 3.0                  # SIMP Penalty
+        penal = 3.0  # SIMP Penalty
         rmin = bcs.get("rmin", 1.1)  # Minimum feature size
-        e = 1.0                      # Young's modulus
-        nu = 0.3                     # Poisson's ratio
-        k = 1.0                      # Thermal conductivity
-        alpha = 5e-4                 # Thermal strain
-        tref = 9.267e-4              # Reference temperature
+        e = 1.0  # Young's modulus
+        nu = 0.3  # Poisson's ratio
+        k = 1.0  # Thermal conductivity
+        alpha = 5e-4  # Thermal strain
+        tref = 9.267e-4  # Reference temperature
         change = 1.0
         iterr = 0
         xmin, xmax = 1e-3, 1.0
@@ -254,7 +255,7 @@ class FeaModel3D:
             f0valm = 0.0
             f0valt = 0.0
 
-            df0dx_m = np.zeros_like(x)   # (nely, nelx, nelz)
+            df0dx_m = np.zeros_like(x)  # (nely, nelx, nelz)
             df0dx_t = np.zeros_like(x)
             df0dx_mat = np.zeros_like(x)
 
@@ -285,14 +286,14 @@ class FeaModel3D:
                     """
                     return (nely + 1) * (nelz + 1) * ix + (nelz + 1) * iy + iz
 
-                n000 = node_id(elx,     ely,     elz)
-                n100 = node_id(elx + 1, ely,     elz)
+                n000 = node_id(elx, ely, elz)
+                n100 = node_id(elx + 1, ely, elz)
                 n110 = node_id(elx + 1, ely + 1, elz)
-                n010 = node_id(elx,     ely + 1, elz)
-                n001 = node_id(elx,     ely,     elz + 1)
-                n101 = node_id(elx + 1, ely,     elz + 1)
+                n010 = node_id(elx, ely + 1, elz)
+                n001 = node_id(elx, ely, elz + 1)
+                n101 = node_id(elx + 1, ely, elz + 1)
                 n111 = node_id(elx + 1, ely + 1, elz + 1)
-                n011 = node_id(elx,     ely + 1, elz + 1)
+                n011 = node_id(elx, ely + 1, elz + 1)
 
                 edof8 = np.array([n000, n100, n110, n010, n001, n101, n111, n011], dtype=int)
                 edof24 = np.empty(24, dtype=int)
@@ -307,13 +308,13 @@ class FeaModel3D:
                     for elz in range(nelz):
                         edof8, edof24 = elem_dofs(elx, ely, elz)
 
-                        um_e = um[edof24]        # (24,)
-                        the = uth[edof8]         # (8,)
+                        um_e = um[edof24]  # (24,)
+                        the = uth[edof8]  # (8,)
 
-                        lamthe = lamth[edof8]    # (8,)
+                        lamthe = lamth[edof8]  # (8,)
 
                         x_e = x[ely, elx, elz]
-                        x_p = x_e ** penal
+                        x_p = x_e**penal
                         x_p_minus1 = penal * (x_e ** (penal - 1))
 
                         f0valm += x_p * (um_e @ (ke @ um_e))
@@ -399,7 +400,7 @@ class FeaModel3D:
             t_total = time.time() - t0
             print(
                 f" It.: {iterr:4d} Obj.: {f0val:10.4f} "
-                f"Vol.: {np.sum(x)/(nelx*nely*nelz):6.3f} ch.: {change:6.3f} "
+                f"Vol.: {np.sum(x) / (nelx * nely * nelz):6.3f} ch.: {change:6.3f} "
                 f"|| t_forward:{t_forward:6.3f} + t_adj:{t_adjoints:6.3f} + t_sens:{t_sens:6.3f} + t_mma:{t_mma:6.3f} = {t_total:6.3f}"
             )
 

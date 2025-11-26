@@ -30,18 +30,18 @@ def plot_fem_3d(bcs, design) -> None:
 
     heatsink_elements = bcs.get("heatsink_elements", np.zeros_like(design))
 
-
-    design      = np.transpose(design, (2, 0, 1))
+    design = np.transpose(design, (2, 0, 1))
     fixed_elements = np.transpose(fixed_elements, (2, 1, 0))
     force_elements = np.transpose(force_elements, (2, 1, 0))
     heatsink_elements = np.transpose(heatsink_elements, (2, 1, 0))
-
 
     viewer = napari.Viewer()
     viewer.add_image(design, name="rho", rendering="attenuated_mip")
     viewer.add_image(fixed_elements, name="fixed_elements", rendering="attenuated_mip", visible=False, colormap="green")
     viewer.add_image(force_elements, name="force_elements", rendering="attenuated_mip", visible=False, colormap="fire")
-    viewer.add_image(heatsink_elements, name="heatsink_elements", rendering="attenuated_mip", visible=False, colormap="purple")
+    viewer.add_image(
+        heatsink_elements, name="heatsink_elements", rendering="attenuated_mip", visible=False, colormap="purple"
+    )
 
     viewer.dims.ndisplay = 3  # switch to 3D view
     napari.run()
