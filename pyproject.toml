@@ -35,10 +35,11 @@ airfoil = ["sqlitedict>=1.6"] # for pyopt_history.py
 electronics = ["networkx >= 3.2.1"]
 beams2d = ["cvxopt >= 1.3.2", "seaborn", "scipy"]
 thermoelastic2d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0"]
+thermoelastic3d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0", "napari", "pyamg"]
 photonics2d = ["ceviche >= 0.1.3"]
 all = [
     # All dependencies above
-    "engibench[airfoil,beams2d,thermoelastic2d,photonics2d,electronics]"
+    "engibench[airfoil,beams2d,thermoelastic2d,thermoelastic3d,photonics2d,electronics]"
 ]
 
 doc = [
@@ -275,5 +276,7 @@ module = [
     "mpi4py",
     "multipoint",
     "pygeo",
+    "napari",
+    "pyamg"
 ]
 ignore_missing_imports = true
