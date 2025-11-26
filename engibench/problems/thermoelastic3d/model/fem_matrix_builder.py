@@ -110,7 +110,7 @@ def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[np.ndarra
                 g = d_n_dx.T  # rows: [dN/dx; dN/dy; dN/dz]
 
                 # Weight factor
-                wt = w[i] * w[j] * w[kq] * det_j
+                wt = w[i] * w[j_idx] * w[kq] * det_j
 
                 # --- Accumulate ---
                 # Mechanical stiffness
