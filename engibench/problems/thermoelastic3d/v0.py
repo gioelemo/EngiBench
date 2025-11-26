@@ -133,7 +133,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         """1.0 for pure structural, 0.0 for pure thermal"""
 
     conditions = Conditions()
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY, NELZ), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_3d_v0"
     container_id = None
 
