@@ -19,7 +19,7 @@ from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.thermoelastic3d.model.fem_model import FeaModel3D
 
-NELX = NELY = NELZ = 32
+NELX = NELY = NELZ = 16
 FIXED_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
 FIXED_ELEMENTS[0, 0, 0] = 1
 FIXED_ELEMENTS[0, -1, -1] = 1
@@ -202,7 +202,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
-        results = FeaModel3D(plot=True, eval_only=False).run(boundary_dict, x_init=starting_point)
+        results = FeaModel3D(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
         return design, opti_steps
