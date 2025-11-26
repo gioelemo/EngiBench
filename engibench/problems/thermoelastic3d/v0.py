@@ -34,7 +34,6 @@ HEATSINK_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
 HEATSINK_ELEMENTS[-1, -1, 0] = 1
 
 
-
 class ThermoElastic3D(Problem[npt.NDArray]):
     r"""Truss 3D integer optimization problem.
 
@@ -242,9 +241,6 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split]), dtype=int)
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
-
-
-
 
 
 if __name__ == "__main__":

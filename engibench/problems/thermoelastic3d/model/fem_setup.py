@@ -14,20 +14,20 @@ from engibench.problems.thermoelastic3d.model.linear_solver import solve_spd_wit
 class FEMthmBCResult3D:
     """Dataclass encapsulating all output parameters for the fem setup code."""
 
-    km: csr_matrix                 # Global mechanical stiffness (ndofm x ndofm)
-    kth: csr_matrix                # Global thermal conductivity (nn x nn)
-    um: np.ndarray                 # Mechanical displacements (ndofm,)
-    uth: np.ndarray                # Temperatures (nn,)
-    fm: np.ndarray                 # Total mechanical RHS (including thermal)
-    fth: np.ndarray                # Thermal RHS after BCs
-    d_cthm: coo_matrix             # Global thermo-mech coupling derivative (ndofm x nn)
-    fixeddofsm: np.ndarray         # Fixed mechanical DOFs
-    alldofsm: np.ndarray           # All mechanical DOFs
-    freedofsm: np.ndarray          # Free mechanical DOFs
-    fixeddofsth: np.ndarray        # Fixed thermal DOFs
-    alldofsth: np.ndarray          # All thermal DOFs
-    freedofsth: np.ndarray         # Free thermal DOFs
-    fp: np.ndarray                 # External mechanical load vector (ndofm,)
+    km: csr_matrix  # Global mechanical stiffness (ndofm x ndofm)
+    kth: csr_matrix  # Global thermal conductivity (nn x nn)
+    um: np.ndarray  # Mechanical displacements (ndofm,)
+    uth: np.ndarray  # Temperatures (nn,)
+    fm: np.ndarray  # Total mechanical RHS (including thermal)
+    fth: np.ndarray  # Thermal RHS after BCs
+    d_cthm: coo_matrix  # Global thermo-mech coupling derivative (ndofm x nn)
+    fixeddofsm: np.ndarray  # Fixed mechanical DOFs
+    alldofsm: np.ndarray  # All mechanical DOFs
+    freedofsm: np.ndarray  # Free mechanical DOFs
+    fixeddofsth: np.ndarray  # Fixed thermal DOFs
+    alldofsth: np.ndarray  # All thermal DOFs
+    freedofsth: np.ndarray  # Free thermal DOFs
+    fp: np.ndarray  # External mechanical load vector (ndofm,)
 
 
 def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
@@ -35,10 +35,10 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     nelx: int,
     nelz: int,
     penal: float,
-    x: np.ndarray,                # shape: (nely, nelx, nelz)
-    ke: np.ndarray,               # (24, 24)  from fe_melthm_3d
-    k_eth: np.ndarray,            # (8, 8)    from fe_melthm_3d
-    c_ethm: np.ndarray,           # (24, 8)   from fe_melthm_3d
+    x: np.ndarray,  # shape: (nely, nelx, nelz)
+    ke: np.ndarray,  # (24, 24)  from fe_melthm_3d
+    k_eth: np.ndarray,  # (8, 8)    from fe_melthm_3d
+    c_ethm: np.ndarray,  # (24, 8)   from fe_melthm_3d
     tref: float,
     bcs: dict[str, Any],
 ) -> FEMthmBCResult3D:
@@ -83,6 +83,7 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
             - freedofsth (np.ndarray): Array of free thermal degrees of freedom.
             - fp (np.ndarray): Force vector used for mechanical loading.
     """
+
     # ---------------------------
     # Helpers
     # ---------------------------
@@ -101,8 +102,8 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # ---------------------------
     # Dimensions & DOF counts
     # ---------------------------
-    nn = (nelx + 1) * (nely + 1) * (nelz + 1)        # thermal DOFs (nodes)
-    ndofsm = 3 * nn                                   # mechanical DOFs (3 per node)
+    nn = (nelx + 1) * (nely + 1) * (nelz + 1)  # thermal DOFs (nodes)
+    ndofsm = 3 * nn  # mechanical DOFs (3 per node)
 
     # ---------------------------
     # THERMAL: BCs (Dirichlet sinks)
@@ -115,31 +116,27 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # Build element connectivity (once)
     # ---------------------------
     # element indices
-    ex, ey, ez = np.meshgrid(
-        np.arange(nelx), np.arange(nely), np.arange(nelz), indexing="ij"
-    )
+    ex, ey, ez = np.meshgrid(np.arange(nelx), np.arange(nely), np.arange(nelz), indexing="ij")
     ex = ex.ravel()
     ey = ey.ravel()
     ez = ez.ravel()
     nelem = ex.size
 
     # Corner nodes in Hex8 order: (-,-,-),(+,-,-),(+,+,-),(-,+,-),(-,-,+),(+,-,+),(+,+,+),(-,+,+)
-    n000 = node_index(ex,     ey,     ez)
-    n100 = node_index(ex + 1, ey,     ez)
+    n000 = node_index(ex, ey, ez)
+    n100 = node_index(ex + 1, ey, ez)
     n110 = node_index(ex + 1, ey + 1, ez)
-    n010 = node_index(ex,     ey + 1, ez)
-    n001 = node_index(ex,     ey,     ez + 1)
-    n101 = node_index(ex + 1, ey,     ez + 1)
+    n010 = node_index(ex, ey + 1, ez)
+    n001 = node_index(ex, ey, ez + 1)
+    n101 = node_index(ex + 1, ey, ez + 1)
     n111 = node_index(ex + 1, ey + 1, ez + 1)
-    n011 = node_index(ex,     ey + 1, ez + 1)
+    n011 = node_index(ex, ey + 1, ez + 1)
 
     # Thermal edof (nelem, 8)
     edof8 = np.stack([n000, n100, n110, n010, n001, n101, n111, n011], axis=1)
 
     # Mechanical edof (nelem, 24): for each node append [3n,3n+1,3n+2]
-    edof24 = np.stack(
-        [3 * edof8 + 0, 3 * edof8 + 1, 3 * edof8 + 2], axis=2
-    ).reshape(nelem, 24)
+    edof24 = np.stack([3 * edof8 + 0, 3 * edof8 + 1, 3 * edof8 + 2], axis=2).reshape(nelem, 24)
 
     # Penalized factor per element (shape matches your x layout)
     # x is indexed as x[ey, ex, ez] to respect (nely, nelx, nelz)
@@ -149,9 +146,9 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # THERMAL: Assemble Kth
     # ---------------------------
     # For each element, contribute penalized * k_eth into node-pair positions
-    kth_row = np.repeat(edof8, 8, axis=1)        # (nelem, 64)
-    kth_col = np.tile(edof8, 8)                  # (nelem, 64)
-    kth_blk = penalized[:, None, None] * k_eth   # (nelem, 8, 8)
+    kth_row = np.repeat(edof8, 8, axis=1)  # (nelem, 64)
+    kth_col = np.tile(edof8, 8)  # (nelem, 64)
+    kth_blk = penalized[:, None, None] * k_eth  # (nelem, 8, 8)
     kth_dat = kth_blk.reshape(nelem, 64).ravel()
 
     kth = coo_matrix((kth_dat, (kth_row.ravel(), kth_col.ravel())), shape=(nn, nn))
@@ -182,16 +179,16 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # MECHANICAL: Assemble Km and d_cthm
     # ---------------------------
     # Stiffness
-    km_row = np.repeat(edof24, 24, axis=1)             # (nelem, 576)
-    km_col = np.tile(edof24, 24)                       # (nelem, 576)
-    km_blk = penalized[:, None, None] * ke             # (nelem, 24, 24)
+    km_row = np.repeat(edof24, 24, axis=1)  # (nelem, 576)
+    km_col = np.tile(edof24, 24)  # (nelem, 576)
+    km_blk = penalized[:, None, None] * ke  # (nelem, 24, 24)
     km_dat = km_blk.reshape(nelem, 576).ravel()
     km = coo_matrix((km_dat, (km_row.ravel(), km_col.ravel())), shape=(ndofsm, ndofsm))
 
     # Coupling derivative (maps θ to mechanical forces)
-    d_c_row = np.repeat(edof24, 8, axis=1)              # (nelem, 24*8)
-    d_c_col = np.tile(edof8, 24)                        # (nelem, 24*8)
-    d_c_blk = penalized[:, None, None] * c_ethm         # (nelem, 24, 8)
+    d_c_row = np.repeat(edof24, 8, axis=1)  # (nelem, 24*8)
+    d_c_col = np.tile(edof8, 24)  # (nelem, 24*8)
+    d_c_blk = penalized[:, None, None] * c_ethm  # (nelem, 24, 8)
     d_c_dat = d_c_blk.reshape(nelem, 24 * 8).ravel()
     d_cthm = coo_matrix((d_c_dat, (d_c_row.ravel(), d_c_col.ravel())), shape=(ndofsm, nn))
 
@@ -204,7 +201,7 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # ---------------------------
     # For each element: diff_e = uth[edof8] - tref  (nelem, 8)
     diff = uth[edof8] - tref
-    thermal_e = (c_ethm @ diff.T).T                   # (nelem, 24)
+    thermal_e = (c_ethm @ diff.T).T  # (nelem, 24)
     thermal_e *= penalized[:, None]
 
     # Accumulate to global vector via bincount
