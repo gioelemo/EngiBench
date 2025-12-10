@@ -35,7 +35,7 @@ To upload images to a PR -- simply drag and drop an image while in edit mode and
 - [ ] I have run `ruff check .` and `ruff format`
 - [ ] I have run `mypy .`
 - [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
+- [ ] I have made corresponding changes to the documentation and [built the docs locally](https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md#build-the-documentation) to ensure that it renders correctly.
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
@@ -52,10 +52,10 @@ For example,
 # Reviewer Checklist:
 
 - [ ] The content of this PR brings value to the community. It is not too specific to a particular use case.
-- [ ] The tests and checks pass (linting, formatting, type checking). For a new problem, double check the github actions workflow to ensure the problem is being tested.
-- [ ] The documentation is updated.
+- [ ] The tests and checks pass (linting, formatting, type checking). For a new problem, double-check the GitHub actions workflow to ensure the problem is being tested.
+- [ ] The documentation is updated. I can also check the [built documentation](https://github.com/IDEALLab/EngiBench/actions/workflows/docs-main.yml) to verify the HTML rendering.
 - [ ] The code is understandable and commented. No large code blocks are left unexplained, no huge file. Can I read and understand the code easily?
 - [ ] There is no merge conflict.
-- [ ] The changes are not breaking the existing results (datasets, training curves, etc.). If they do, is there a good reason for it? And is the associated problem version bumped?
-- [ ] For a new problem, has the dataset been generated with our slurm script so we can re-generate it if needed? (This also ensures that the problem is running on the HPC.)
+- [ ] If this PR affects an existing problem, the changes do not break the existing results (datasets, training curves, etc.). If they do, is there a good reason for it? And is the associated problem version bumped?
+- [ ] For a new problem, has the dataset been generated with our SLURM script so we can re-generate it if needed? (This also ensures that the problem is running on the HPC.)
 - [ ] For bugfixes, it is a robust fix and not a hacky workaround.
