@@ -292,16 +292,12 @@ class Beams2D(Problem[npt.NDArray]):
         if starting_point is None:
             xPhys = base_config.volfrac * np.ones((base_config.nelx, base_config.nely), dtype=float)
             x = xPhys.ravel()
-            dc = np.zeros(base_config.nely * base_config.nelx)
-            dv = np.zeros(base_config.nely * base_config.nelx)
         else:
             starting_point = image_to_design(starting_point)
             assert starting_point is not None
-            x = deepcopy(starting_point)
+            eps = 1e-4
+            x = (1 - eps) * starting_point + eps * base_config.volfrac  # add tiny non-zero values to avoid warm-start gradient issues for zero values
             xPhys = x.reshape((base_config.nelx, base_config.nely))
-            ce = calc_sensitivity(starting_point, st=self.__st, cfg=dataclasses.asdict(base_config))
-            dc = (-base_config.penal * starting_point ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
-            dv = np.ones(base_config.nely * base_config.nelx)
 
         xPrint = overhang_filter_x(xPhys) if base_config.overhang_constraint else xPhys.ravel()
         loop, change = (0, 1.0)
