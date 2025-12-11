@@ -296,7 +296,9 @@ class Beams2D(Problem[npt.NDArray]):
             starting_point = image_to_design(starting_point)
             assert starting_point is not None
             eps = 1e-4
-            x = (1 - eps) * starting_point + eps * base_config.volfrac  # add tiny non-zero values to avoid warm-start gradient issues for zero values
+            x = (
+                (1 - eps) * starting_point + eps * base_config.volfrac
+            )  # add tiny non-zero values to avoid warm-start gradient issues for zero values
             xPhys = x.reshape((base_config.nelx, base_config.nely))
 
         xPrint = overhang_filter_x(xPhys) if base_config.overhang_constraint else xPhys.ravel()
