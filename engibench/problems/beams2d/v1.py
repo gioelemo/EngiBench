@@ -129,7 +129,10 @@ class Beams2D(Problem[npt.NDArray]):
     Three datasets are available on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab).
     They correspond to resolutions of $50 \times 25$, $100 \times 50$ (default), and $200 \times 100$.
 
-    ### v0
+    ### v1
+    This version augments v0 by fixing a minor detail in the v0 warm-start optimization process.
+    Specifically, when warm-starting from a provided design, a small epsilon value is added to
+    avoid zero-density values that could lead to gradient issues. The datasets themselves remain unchanged.
 
     #### Fields
     Each dataset contains:
@@ -166,7 +169,7 @@ class Beams2D(Problem[npt.NDArray]):
     Arthur Drake @arthurdrake1
     """
 
-    version = 0
+    version = 1
     objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
 
     @dataclass
@@ -212,7 +215,9 @@ class Beams2D(Problem[npt.NDArray]):
 
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.nely, Config.nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
+    dataset_id = (
+        f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v0"  # v0 hardcoded as the initial dataset was left unchanged for v1
+    )
     container_id = None
 
     def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
@@ -235,7 +240,9 @@ class Beams2D(Problem[npt.NDArray]):
         self.nelx = self.config.nelx
         self.nely = self.config.nely
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
+        self.dataset_id = (
+            f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"  # v0 hardcoded as the initial dataset was left unchanged for v1
+        )
 
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
@@ -292,16 +299,14 @@ class Beams2D(Problem[npt.NDArray]):
         if starting_point is None:
             xPhys = base_config.volfrac * np.ones((base_config.nelx, base_config.nely), dtype=float)
             x = xPhys.ravel()
-            dc = np.zeros(base_config.nely * base_config.nelx)
-            dv = np.zeros(base_config.nely * base_config.nelx)
         else:
             starting_point = image_to_design(starting_point)
             assert starting_point is not None
-            x = deepcopy(starting_point)
+            eps = 1e-4
+            x = (
+                (1 - eps) * starting_point + eps * base_config.volfrac
+            )  # add tiny non-zero values to avoid warm-start gradient issues for zero values
             xPhys = x.reshape((base_config.nelx, base_config.nely))
-            ce = calc_sensitivity(starting_point, st=self.__st, cfg=dataclasses.asdict(base_config))
-            dc = (-base_config.penal * starting_point ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
-            dv = np.ones(base_config.nely * base_config.nelx)
 
         xPrint = overhang_filter_x(xPhys) if base_config.overhang_constraint else xPhys.ravel()
         loop, change = (0, 1.0)
