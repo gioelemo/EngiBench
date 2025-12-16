@@ -212,7 +212,7 @@ class Beams2D(Problem[npt.NDArray]):
 
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.nely, Config.nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
+    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v0"
     container_id = None
 
     def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
@@ -235,7 +235,7 @@ class Beams2D(Problem[npt.NDArray]):
         self.nelx = self.config.nelx
         self.nely = self.config.nely
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
+        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
