@@ -385,18 +385,18 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
-if __name__ == "__main__":
-    # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
-    # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
-    # If a new nely and nelx are not passed in, uses the default conditions.
+def main():
+    """Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
 
+    Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
+    If a new nely and nelx are not passed in, uses the default conditions.
+    """
     problem = Beams2D(seed=0)
 
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]
     c_train = dataset["train"]["c"]
     condition_keys = [f.name for f in dataclasses.fields(problem.Conditions)]
     params_train = dataset["train"].select_columns(condition_keys)
@@ -406,7 +406,7 @@ if __name__ == "__main__":
     design, idx = problem.random_design()
     config = params_train[idx]
     compliance = c_train[idx]
-    fig, ax = problem.render(design, open_window=True)
+    problem.render(design, open_window=True)
 
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
@@ -425,4 +425,8 @@ if __name__ == "__main__":
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    fig, ax = problem.render(optimal_design, open_window=True)
+    problem.render(optimal_design, open_window=True)
+
+
+if __name__ == "__main__":
+    main()

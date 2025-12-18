@@ -19,6 +19,7 @@ from engibench.problems.beams2d.backend import overhang_filter_x
 from engibench.problems.beams2d.backend import State
 from engibench.problems.beams2d.v0 import Beams2D as Beams2D_v0
 from engibench.problems.beams2d.v0 import ExtendedOptiStep
+from engibench.problems.beams2d.v0 import main
 from engibench.utils.upcast import upcast
 
 
@@ -108,43 +109,4 @@ class Beams2D(Beams2D_v0):
 
 
 if __name__ == "__main__":
-    # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
-    # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
-    # If a new nely and nelx are not passed in, uses the default conditions.
-
-    problem = Beams2D(seed=0)
-
-    print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
-    dataset = problem.dataset
-
-    # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]
-    c_train = dataset["train"]["c"]
-    condition_keys = [f.name for f in dataclasses.fields(problem.Conditions)]
-    params_train = dataset["train"].select_columns(condition_keys)
-
-    # Get design and conditions from the dataset, render design
-    # Note that here, we override any previous configs to re-optimize the same design as a test case.
-    design, idx = problem.random_design()
-    config = params_train[idx]
-    compliance = c_train[idx]
-    fig, ax = problem.render(design, open_window=True)
-
-    print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
-
-    try:
-        c_ref = problem.simulate(design, config=config)[0]
-        print(f"Calculated compliance: {c_ref:.4f}")
-    except ArithmeticError:
-        print("Failed to calculate compliance for upscaled design.")
-
-    # Sample Optimization
-    print("\nNow conducting a sample optimization with the given configs:", config)
-    problem.reset(seed=1)
-
-    # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
-    print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
-    print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
-
-    fig, ax = problem.render(optimal_design, open_window=True)
+    main()
