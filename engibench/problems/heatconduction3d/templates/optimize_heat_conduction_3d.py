@@ -7,7 +7,7 @@ material distribution to minimize thermal complaicen under a volume constraint.
 """
 
 import glob
-import importlib
+from importlib.util import find_spec
 import os
 import re
 
@@ -41,7 +41,7 @@ from engibench.utils.cli import cast_argv
 from engibench.utils.cli import np_array_from_stdin
 
 # Ensure IPOPT is available
-if importlib.util.find_spec("pyadjoint.ipopt") is None:
+if find_spec("pyadjoint.ipopt") is None:
     raise ImportError("""This example depends on IPOPT and Python ipopt bindings. \
     When compiling IPOPT, make sure to link against HSL, as it \
     is a necessity for practical problems.""")
