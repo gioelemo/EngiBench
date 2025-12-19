@@ -385,13 +385,13 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
-def main():
+def main(problem_type: type[Problem]) -> None:
     """Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
 
     Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
     If a new nely and nelx are not passed in, uses the default conditions.
     """
-    problem = Beams2D(seed=0)
+    problem = problem_type(seed=0)
 
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
@@ -429,4 +429,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(Beams2D)

@@ -109,4 +109,4 @@ class Beams2D(Beams2D_v0):
 
 
 if __name__ == "__main__":
-    main()
+    main(Beams2D)
