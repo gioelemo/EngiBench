@@ -393,6 +393,8 @@ def main(problem_type: type[Problem]) -> None:
     """
     problem = problem_type(seed=0)
 
+    assert hasattr(problem, "nelx")
+    assert hasattr(problem, "nely")
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
 
@@ -421,7 +423,7 @@ def main(problem_type: type[Problem]) -> None:
     problem.reset(seed=1)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
+    optimal_design, optisteps_history = problem.optimize(config=config, starting_point=None)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 

@@ -253,7 +253,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         size = len(design) + 1
 
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
+        ax: Any = fig.add_subplot(111, projection="3d")
         x, y, z = np.indices((size + 1, size + 1, size + 1)) / size  # Normalize to [0,1]
         # Define which voxels to plot
         threshold = 0.7
