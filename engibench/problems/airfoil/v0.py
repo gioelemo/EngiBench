@@ -6,7 +6,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
-import importlib
+from importlib.util import find_spec
 import json
 import os
 import shutil
@@ -37,7 +37,7 @@ from engibench.utils import container
 from engibench.utils.files import clone_dir
 
 # Allow loading pyoptsparse histories even if pyoptsparse is not installed:
-if importlib.util.find_spec("pyoptsparse") is None:
+if find_spec("pyoptsparse") is None:
     from engibench.problems.airfoil import fake_pyoptsparse
 
     sys.modules["pyoptsparse"] = fake_pyoptsparse

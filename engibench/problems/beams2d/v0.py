@@ -212,7 +212,7 @@ class Beams2D(Problem[npt.NDArray]):
 
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.nely, Config.nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
+    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v0"
     container_id = None
 
     def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
@@ -235,7 +235,7 @@ class Beams2D(Problem[npt.NDArray]):
         self.nelx = self.config.nelx
         self.nely = self.config.nely
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
+        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
@@ -385,18 +385,20 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
-if __name__ == "__main__":
-    # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
-    # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
-    # If a new nely and nelx are not passed in, uses the default conditions.
+def main(problem_type: type[Problem]) -> None:
+    """Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
 
-    problem = Beams2D(seed=0)
+    Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
+    If a new nely and nelx are not passed in, uses the default conditions.
+    """
+    problem = problem_type(seed=0)
 
+    assert hasattr(problem, "nelx")
+    assert hasattr(problem, "nely")
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]
     c_train = dataset["train"]["c"]
     condition_keys = [f.name for f in dataclasses.fields(problem.Conditions)]
     params_train = dataset["train"].select_columns(condition_keys)
@@ -406,7 +408,7 @@ if __name__ == "__main__":
     design, idx = problem.random_design()
     config = params_train[idx]
     compliance = c_train[idx]
-    fig, ax = problem.render(design, open_window=True)
+    problem.render(design, open_window=True)
 
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
@@ -421,8 +423,12 @@ if __name__ == "__main__":
     problem.reset(seed=1)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
+    optimal_design, optisteps_history = problem.optimize(config=config, starting_point=None)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    fig, ax = problem.render(optimal_design, open_window=True)
+    problem.render(optimal_design, open_window=True)
+
+
+if __name__ == "__main__":
+    main(Beams2D)
