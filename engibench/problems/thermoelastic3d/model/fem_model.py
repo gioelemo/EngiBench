@@ -25,7 +25,7 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel3D:
     """Finite Element Analysis (FEA) model for coupled 3D thermoelastic topology optimization."""
 
-    def __init__(self, *, plot: bool = False, eval_only: bool | None = False) -> None:
+    def __init__(self, *, plot: bool = False, eval_only: bool = False) -> None:
         """Instantiates a new 3D thermoelastic model.
 
         Args:
