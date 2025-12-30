@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """Build 3D Hex8 element matrices for thermo-elasticity.
 
     Args:
