@@ -3,7 +3,7 @@
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any
 
 from gymnasium import spaces
 import napari
@@ -129,6 +129,9 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         rmin: Annotated[
             float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
         ] = 1.5
+        penal: Annotated[
+            float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=10.0).warning().category(IMPL)
+        ] = 3.0
         weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
         """1.0 for pure structural, 0.0 for pure thermal"""
 
@@ -141,15 +144,34 @@ class ThermoElastic3D(Problem[npt.NDArray]):
     class Config(Conditions):
         """Structured representation of configuration parameters for a numerical computation."""
 
-        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
-        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELY
-        nelz: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELZ
+        nelx: Annotated[int, bounded(lower=1).category(THEORY)] = NELX
+        nely: Annotated[int, bounded(lower=1).category(THEORY)] = NELY
+        nelz: Annotated[int, bounded(lower=1).category(THEORY)] = NELZ
 
         @constraint
         @staticmethod
         def rmin_bound(rmin: float, nelx: int, nely: int, nelz: int) -> None:
             """Constraint for rmin ∈ (0.0, max{ nelx, nely, nelz }]."""
             assert 0.0 < rmin <= max(nelx, nely, nelz), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely, nelz)]"
+
+        @constraint
+        @staticmethod
+        def bc_check( # noqa: PLR0913
+            nelx: int,
+            nely: int,
+            nelz: int,
+            fixed_elements: npt.NDArray[np.int64],
+            force_elements_x: npt.NDArray[np.int64],
+            force_elements_y: npt.NDArray[np.int64],
+            force_elements_z: npt.NDArray[np.int64],
+            heatsink_elements: npt.NDArray[np.int64],
+        ) -> None:
+            """Constraint to ensure boundary conditions are valid."""
+            assert fixed_elements.shape == (nelx + 1, nely + 1, nelz + 1), "Params.fixed_elements has invalid shape."
+            assert force_elements_x.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_x has invalid shape."
+            assert force_elements_y.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_y has invalid shape."
+            assert force_elements_z.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_z has invalid shape."
+            assert heatsink_elements.shape == (nelx + 1, nely + 1, nelz + 1), "Params.heatsink_elements has invalid shape."
 
     def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulates the performance of a design topology.

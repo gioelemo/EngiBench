@@ -1,9 +1,14 @@
 """This module assembles the local stiffness matrices the elastic, thermal, and thermoelastic domains."""
 
 import numpy as np
+from numpy import typing as npt
+
+SHAPE_NORM = 0.125  # Hex8 shape function normalization factor
 
 
-def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+def fe_melthm_3d(
+    nu: float, e: float, k: float, alpha: float
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """Build 3D Hex8 element matrices for thermo-elasticity.
 
     Args:
@@ -31,21 +36,21 @@ def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[NDArray[n
         """Builds the shape function for the local elements.
 
         Args:
-            xi (float): Poisson's ratio
-            eta (float): Young's modulus
-            zeta (float): Thermal conductivity
+            xi (float): Gaussian x coordinate
+            eta (float): Gaussian y coordinate
+            zeta (float): Gaussian z coordinate
 
         Returns:
             n: (8,) shape functions
             d_n_dxi: (8,3) derivatives w.r.t. [xi, eta, zeta]
         """
-        n = 0.125 * (1 + xi_nodes * xi) * (1 + et_nodes * eta) * (1 + ze_nodes * zeta)
+        n = SHAPE_NORM * (1 + xi_nodes * xi) * (1 + et_nodes * eta) * (1 + ze_nodes * zeta)
 
         # Derivatives with respect to natural coords
         d_n_dxi = np.zeros((8, 3))
-        d_n_dxi[:, 0] = 0.125 * xi_nodes * (1 + et_nodes * eta) * (1 + ze_nodes * zeta)  # ∂N/∂xi
-        d_n_dxi[:, 1] = 0.125 * et_nodes * (1 + xi_nodes * xi) * (1 + ze_nodes * zeta)  # ∂N/∂eta
-        d_n_dxi[:, 2] = 0.125 * ze_nodes * (1 + xi_nodes * xi) * (1 + et_nodes * eta)  # ∂N/∂zeta
+        d_n_dxi[:, 0] = SHAPE_NORM * xi_nodes * (1 + et_nodes * eta) * (1 + ze_nodes * zeta)  # ∂N/∂xi
+        d_n_dxi[:, 1] = SHAPE_NORM * et_nodes * (1 + xi_nodes * xi) * (1 + ze_nodes * zeta)  # ∂N/∂eta
+        d_n_dxi[:, 2] = SHAPE_NORM * ze_nodes * (1 + xi_nodes * xi) * (1 + et_nodes * eta)  # ∂N/∂zeta
         return n, d_n_dxi
 
     # --- Geometry & Jacobian ---
@@ -62,14 +67,13 @@ def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[NDArray[n
         [
             [lam + 2 * mu, lam, lam, 0, 0, 0],
             [lam, lam + 2 * mu, lam, 0, 0, 0],
-            [lam, lam + 2 * mu, lam + 2 * mu, 0, 0, 0],  # <- typo fixed: [2,2] should be lam+2mu
+            [lam, lam + 2 * mu, lam + 2 * mu, 0, 0, 0],
             [0, 0, 0, mu, 0, 0],
             [0, 0, 0, 0, mu, 0],
             [0, 0, 0, 0, 0, mu],
         ],
         dtype=float,
     )
-    # fix typo in [2,1] above:
     d[2, 1] = lam
 
     # Thermal "volumetric" strain direction in Voigt
