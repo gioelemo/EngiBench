@@ -1,6 +1,5 @@
 """Module for plotting a 3D thermoelastic design with napari."""
 
-from __future__ import annotations
 
 import napari
 import numpy as np
