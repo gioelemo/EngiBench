@@ -23,9 +23,9 @@ def fe_melthm_3d(nu: float, e: float, k: float, alpha: float) -> tuple[np.ndarra
 
     # --- Hex8 shape functions and derivatives in natural coordinates ---
     # Node order: (-,-,-), (+,-,-), (+,+,-), (-,+,-), (-,-,+), (+,-,+), (+,+,+), (-,+,+)
-    xi_nodes = np.array([-1, 1, 1, -1, -1, 1, 1, -1], dtype=float)
-    et_nodes = np.array([-1, -1, 1, 1, -1, -1, 1, 1], dtype=float)
-    ze_nodes = np.array([-1, -1, -1, -1, 1, 1, 1, 1], dtype=float)
+    xi_nodes = np.array([-1, 1, 1, -1, -1, 1, 1, -1])
+    et_nodes = np.array([-1, -1, 1, 1, -1, -1, 1, 1])
+    ze_nodes = np.array([-1, -1, -1, -1, 1, 1, 1, 1])
 
     def shape_fun_and_derivs(xi: float, eta: float, zeta: float) -> tuple[np.ndarray, np.ndarray]:
         """Builds the shape function for the local elements.
