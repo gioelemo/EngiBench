@@ -151,22 +151,6 @@ class ThermoElastic3D(Problem[npt.NDArray]):
             """Constraint for rmin ∈ (0.0, max{ nelx, nely, nelz }]."""
             assert 0.0 < rmin <= max(nelx, nely, nelz), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely, nelz)]"
 
-    def __init__(self, seed: int = 0) -> None:
-        """Initializes the thermoelastic3D problem.
-
-        Args:
-            seed (int): The random seed for the problem.
-        """
-        super().__init__(seed=seed)
-
-    def reset(self, seed: int | None = None) -> None:
-        """Resets the simulator and numpy random to a given seed.
-
-        Args:
-            seed (int, optional): The seed to reset to. If None, a random seed is used.
-        """
-        super().reset(seed)
-
     def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulates the performance of a design topology.
 
