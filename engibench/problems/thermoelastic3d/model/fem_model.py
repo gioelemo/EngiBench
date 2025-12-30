@@ -182,7 +182,7 @@ class FeaModel3D:
         x = self.get_initial_design(volfrac, nelx, nely, nelz) if x_init is None else x_init.copy()
 
         # 2. Parameters
-        penal = 3.0  # SIMP Penalty
+        penal = bcs.get("penal", 3.0)  # SIMP Penalty
         rmin = bcs.get("rmin", 1.1)  # Minimum feature size
         e = 1.0  # Young's modulus
         nu = 0.3  # Poisson's ratio
@@ -244,7 +244,7 @@ class FeaModel3D:
             # Mechanical adjoint: self-adjoint, so the adjoint vector is simply the displacements
             lamm = -um
 
-            # Thermal adjoint: K_th * lambda_th = (lamm^T - um^T) * d_cthm - f_th TODO: solver change here
+            # Thermal adjoint: K_th * lambda_th = (lamm^T - um^T) * d_cthm - f_th
             rhs_th = d_cthm.T @ (lamm - um) - fth
             lamth = solve_spd_with_amg(kth.tocsr(), rhs_th)
 

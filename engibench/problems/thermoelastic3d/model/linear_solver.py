@@ -37,6 +37,9 @@ def solve_spd_with_amg(
     if info != 0:
         x = ml.solve(b, x0=x, tol=tol)
 
+    if not np.all(np.isfinite(x)):
+        raise RuntimeError(f"Linear solver failed: solution contains non-finite values: {info}")
+
     return x
 
 
