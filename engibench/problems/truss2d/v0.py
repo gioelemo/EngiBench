@@ -17,7 +17,7 @@ from engibench.problems.truss2d.model.constraints import calculate_overlap_score
 from engibench.problems.truss2d.model.stiffness import calculate_stiffness
 from engibench.problems.truss2d.model.visualization import viz
 from engibench.problems.truss2d.model.volume_fraction import calculate_volume
-from engibench.problems.truss2d.optimize.nsga2 import Truss2dNSGA2
+from engibench.problems.truss2d.optimize.taea import Truss2dCTAEA
 
 
 class Truss2D(Problem[npt.NDArray]):
@@ -152,7 +152,8 @@ class Truss2D(Problem[npt.NDArray]):
         if config:
             self.conditions.update_from_dict(config)
 
-        algorithm = Truss2dNSGA2(self, initial_designs=starting_point)
+        algorithm = Truss2dCTAEA(self, initial_designs=starting_point, population_size=100, generations=1000, node_sort_init=False)
+
         results = algorithm.solve()
 
         pareto_designs = results["X"]
@@ -208,8 +209,10 @@ if __name__ == "__main__":
     # --- Create a new problem
     problem = Truss2D(seed=0)
 
+    from engibench.problems.truss2d.case_studies.jmd_truss2d import case_study1
+
     starting_point = np.array([])
-    pareto_designs, opti_steps = problem.optimize(starting_point)
+    pareto_designs, opti_steps = problem.optimize(starting_point, config=case_study1)
 
     # Visualization
     for pd in pareto_designs.tolist():
