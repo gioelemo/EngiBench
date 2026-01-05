@@ -156,7 +156,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
 
         @constraint
         @staticmethod
-        def bc_check( # noqa: PLR0913
+        def bc_check(  # noqa: PLR0913
             nelx: int,
             nely: int,
             nelz: int,
@@ -172,6 +172,14 @@ class ThermoElastic3D(Problem[npt.NDArray]):
             assert force_elements_y.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_y has invalid shape."
             assert force_elements_z.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_z has invalid shape."
             assert heatsink_elements.shape == (nelx + 1, nely + 1, nelz + 1), "Params.heatsink_elements has invalid shape."
+
+    def reset(self, seed: int | None = None) -> None:
+        """Resets the simulator and numpy random to a given seed.
+
+        Args:
+            seed (int, optional): The seed to reset to. If None, a random seed is used.
+        """
+        super().reset(seed)
 
     def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulates the performance of a design topology.
