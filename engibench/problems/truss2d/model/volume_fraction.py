@@ -29,7 +29,7 @@ def calculate_volume(conditions: Conditions, design_rep: Any) -> float:
     nodes = np.array(nodes).tolist()
     member_radii = conditions.member_radii
     radius = member_radii
-    member_cs_area = (np.pi * radius) ** 2
+    member_cs_area = np.pi * (radius ** 2)
     member_vols = []
     for ca in node_idx_pairs:
         p1 = nodes[ca[0]]
