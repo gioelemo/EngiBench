@@ -116,10 +116,10 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     # Build element connectivity (once)
     # ---------------------------
     # element indices
-    ex, ey, ez = np.meshgrid(np.arange(nelx), np.arange(nely), np.arange(nelz), indexing="ij")
-    ex = ex.ravel()
-    ey = ey.ravel()
-    ez = ez.ravel()
+    ex_full, ey_full, ez_full = np.meshgrid(np.arange(nelx), np.arange(nely), np.arange(nelz), indexing="ij")
+    ex = ex_full.ravel()
+    ey = ey_full.ravel()
+    ez = ez_full.ravel()
     nelem = ex.size
 
     # Corner nodes in Hex8 order: (-,-,-),(+,-,-),(+,+,-),(-,+,-),(-,-,+),(+,-,+),(+,+,+),(-,+,+)
