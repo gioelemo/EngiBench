@@ -149,9 +149,9 @@ def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
     kth_row = np.repeat(edof8, 8, axis=1)  # (nelem, 64)
     kth_col = np.tile(edof8, 8)  # (nelem, 64)
     kth_blk = penalized[:, None, None] * k_eth  # (nelem, 8, 8)
-    kth_dat = kth_blk.reshape(nelem, 64).ravel() # type: ignore[assignment]
+    kth_dat = kth_blk.reshape(nelem, 64).ravel()
 
-    kth = coo_matrix((kth_dat, (kth_row.ravel(), kth_col.ravel())), shape=(nn, nn)) # type: ignore[assignment]
+    kth = coo_matrix((kth_dat, (kth_row.ravel(), kth_col.ravel())), shape=(nn, nn))
     kth = (kth + kth.T) / 2.0
     kth = kth.tolil()
 
