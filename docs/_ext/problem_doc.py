@@ -8,7 +8,7 @@ airfoil
 `````
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 import contextlib
 import dataclasses
 import importlib.abc
@@ -16,10 +16,12 @@ import importlib.machinery
 import inspect
 import sys
 from types import ModuleType
-from typing import Any
+from typing import Any, ClassVar, get_type_hints
 import unittest.mock
 
 from docutils import nodes
+from docutils.parsers.rst import directives
+from sphinx import addnodes
 from sphinx.application import Sphinx
 from sphinx.util.docutils import SphinxDirective
 
@@ -32,8 +34,46 @@ def setup(app: Sphinx) -> None:
     app.add_directive("problem", ProblemDirective)
 
 
+class DirectiveOption:
+    """Abstraction for options for the problem directive."""
+
+    key: str
+    caption: str
+
+    def to_node(self) -> nodes.Node:
+        raise NotImplementedError("Must be implemented by a subclass")
+
+
+class Lead(DirectiveOption):
+    """Option to specify a lead in the problem directive."""
+
+    key = "lead"
+    caption = "Lead"
+
+    def __init__(self, value: str) -> None:
+        self.handle = None
+        self.name, self.handle = value.split(" @", 1) if " @" in value else (value, None)
+
+    def to_node(self) -> nodes.Node:
+        p = nodes.Text(self.name)
+        if self.handle:
+            node = nodes.paragraph()
+            node += [
+                p,
+                nodes.Text(" "),
+                nodes.reference(refuri=f"https://github.com/{self.handle}", text="@" + self.handle),
+            ]
+            return node
+        return p
+
+
 class ProblemDirective(SphinxDirective):
     required_arguments = 1
+    option_spec: ClassVar[dict[str, Any]] = {
+        d.key: d
+        for d in globals().values()
+        if isinstance(d, type) and issubclass(d, DirectiveOption) and d is not DirectiveOption
+    }
 
     def run(self) -> list[Any]:
         with mock_imports(MODULE_WHITELIST, extra_members=MODULE_EXTRA_MEMBERS):
@@ -42,8 +82,7 @@ class ProblemDirective(SphinxDirective):
 
         problem_id = self.arguments[0].strip()
         problem = BUILTIN_PROBLEMS[problem_id]
-        docstring = unindent(problem.__doc__) if problem.__doc__ is not None else ""
-        docstring = inspect.cleandoc(docstring)
+        docstring = inspect.getdoc(problem)
 
         image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="450px", align="center")
 
@@ -51,16 +90,17 @@ class ProblemDirective(SphinxDirective):
             f"{obj}: ↑" if direction == ObjectiveDirection.MAXIMIZE else f"{obj}: ↓"
             for obj, direction in problem.objectives
         ]
-        conditions = [f"{f.name}: {f.default}" for f in dataclasses.fields(problem.Conditions)]
+        conditions = read_dataclass(problem.Conditions)
 
         tab_data = [
             ("Version", str(problem.version)),
             ("Design space", make_code(repr(problem.design_space))),
             ("Objectives", make_multiline(objectives)),
-            ("Conditions", make_multiline(conditions)),
+            ("Conditions", make_field_list(conditions)),
             ("Dataset", make_link(problem.dataset_id, f"https://huggingface.co/datasets/{problem.dataset_id}")),
             ("Container", make_code(problem.container_id) if problem.container_id is not None else None),
             ("Import", make_code(f"from {problem.__module__} import {problem.__name__}")),
+            *((o.caption, o.to_node()) for o in self.options.values()),
         ]
 
         # Very ugly hack to retain the order of children
@@ -73,15 +113,7 @@ class ProblemDirective(SphinxDirective):
         sec.clear()
         sec.extend(header)
 
-        return [image, make_table(tab_data), *body]
-
-
-def make_section(title: str, section_id: str, body: list[Any]) -> nodes.section:
-    sec = nodes.section(ids=[section_id])
-    sec += nodes.title(text=title)
-    for element in body:
-        sec += element
-    return sec
+        return [image, *body, make_table(tab_data)]
 
 
 def make_link(text: str, uri: str) -> nodes.paragraph:
@@ -118,6 +150,44 @@ def make_table(tab_data: list[tuple[str, Any]]) -> nodes.table:
     return table
 
 
+@dataclasses.dataclass
+class Field:
+    name: str
+    type: type | None
+    default: Any
+    doc: str | None
+
+
+def make_field_list(fields: list[Field]) -> nodes.Node:
+    node = addnodes.desc()
+    for f in fields:
+        f_node = addnodes.desc()
+        node.append(f_node)
+        signode = addnodes.desc_signature("", "")
+        f_node.append(signode)
+        signode += addnodes.desc_name(f.name, f.name)
+        if f.type is not None:
+            signode += addnodes.desc_annotation(
+                directives.unchanged,
+                "",
+                addnodes.desc_sig_punctuation("", ":"),
+                addnodes.desc_sig_space(),
+                nodes.Text(f.type.__name__ if isinstance(f.type, type) else str(f.type)),
+            )
+        if f.default is not dataclasses.MISSING:
+            signode += addnodes.desc_annotation(
+                directives.unchanged,
+                "",
+                addnodes.desc_sig_punctuation("", " ="),
+                addnodes.desc_sig_space(),
+                nodes.Text(f.default),
+            )
+        if f.doc is not None:
+            f_node.append(addnodes.desc_content("", nodes.Text(f.doc)))
+
+    return node
+
+
 def unindent(docstring: str) -> str:
     if not docstring:
         return ""
@@ -139,10 +209,63 @@ def unindent(docstring: str) -> str:
 
 
 def line_indent(line: str) -> int | None:
+    """Determine the indent of a lines"""
     stripped = line.lstrip()
     if stripped:
         return len(line) - len(stripped)
     return None
+
+
+def read_dataclass(c: type) -> list[Field]:
+    """Read the fields of a dataclass including docstrings for attributes."""
+    docs = read_field_docstrings(c)
+    types = get_type_hints(c)
+    fields = dataclasses.fields(c)
+    return [Field(name=f.name, default=f.default, doc=docs.get(f.name), type=types.get(f.name)) for f in fields]
+
+
+def read_field_docstrings(c: type) -> dict[str, str]:
+    """Read field docstrings from a dataclass."""
+    src = inspect.getsource(c)
+    indent = ((line_indent(src) or 0) + 4) * " "
+
+    def find_line_start(src: str) -> str | None:
+        pos = src.find("\n" + indent)
+        return None if pos == -1 else src[pos + len(indent) + 1 :]
+
+    def field_name(line: str) -> tuple[str, str | None]:
+        try:
+            name, rest = line.split(": ", 1)
+        except ValueError:
+            return line, None
+        return (rest, name) if name.isidentifier() else (line, None)
+
+    def docstr(line: str) -> tuple[str, str | None]:
+        if not line.startswith('"""'):
+            return line, None
+        pos = line.find('"""', 3)
+        if pos == -1:
+            raise ValueError("Unterminated docstring found")
+        return line[pos + 3 :], line[3:pos]
+
+    def tokenize(src: str) -> Iterable[tuple[str, str]]:
+        rest: str | None = src
+        f_name: str | None = None
+        while rest:
+            rest = find_line_start(rest)
+            if rest is None:
+                break
+            rest, new_f_name = field_name(rest)
+            if new_f_name is not None:
+                f_name = new_f_name
+                continue
+            if f_name is not None:
+                rest, docstring = docstr(rest)
+                if docstring is not None:
+                    yield f_name, docstring
+                    f_name = None
+
+    return dict(tokenize(src))
 
 
 @contextlib.contextmanager
