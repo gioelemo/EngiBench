@@ -491,9 +491,10 @@ class Photonics2D(Problem[npt.NDArray]):
         )
         opti_steps_history.append(initial_design_optistep)
 
-        # Ensure directory exists for saving frames
-        frame_dir = "opt_frames"
-        os.makedirs(frame_dir, exist_ok=True)
+        if save_frame_interval is not None and save_frame_interval > 0:
+            # Ensure directory exists for saving frames
+            frame_dir = "opt_frames"
+            os.makedirs(frame_dir, exist_ok=True)
 
         # --- Define Objective Function for Ceviche Optimizer ---
         def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
@@ -577,7 +578,7 @@ class Photonics2D(Problem[npt.NDArray]):
                 plt.close(fig)  # Close the figure to free memory
                 print(f"Callback Iter {iteration}: Saved frame to {save_path}")
             # --- End Frame Saving ---
-            if iteration == num_optimization_steps - 1:
+            if save_frame_interval is not None and save_frame_interval > 0 and iteration == num_optimization_steps - 1:
                 print(f"Final Iteration {iteration}: Objective Value: {last_scalar_obj_value:.3e}")
                 print("Saving render of final design...")
                 current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
@@ -784,10 +785,13 @@ if __name__ == "__main__":
         print(f"First step objective: {opti_history[0].obj_values[0]:.4f}")
         print(f"Last step objective: {opti_history[-1].obj_values[0]:.4f}")
 
-    print("Rendering optimized design...")
-    fig_opt = problem.render(optimized_design, open_window=True)
-    frame_dir = "opt_frames"
-    fig_opt.savefig(frame_dir + "/optimized_design.png", dpi=200)
+    save_frame_interval = opt_config.get("save_frame_interval", 0)
+    if save_frame_interval is not None and save_frame_interval > 0:
+        print("Rendering optimized design...")
+        fig_opt = problem.render(optimized_design, open_window=True)
+        frame_dir = "opt_frames"
+        os.makedirs(frame_dir, exist_ok=True)
+        fig_opt.savefig(frame_dir + "/optimized_design.png", dpi=200)
 
     print("Simulating the final optimized design...")
     # Simulate returns the raw objective = penalty - overlap1*overlap2
