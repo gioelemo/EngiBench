@@ -14,20 +14,34 @@ from engibench.problems.thermoelastic3d.model.linear_solver import solve_spd_wit
 class FEMthmBCResult3D:
     """Dataclass encapsulating all output parameters for the fem setup code."""
 
-    km: csr_matrix  # Global mechanical stiffness (ndofm x ndofm)
-    kth: csr_matrix  # Global thermal conductivity (nn x nn)
-    um: np.ndarray  # Mechanical displacements (ndofm,)
-    uth: np.ndarray  # Temperatures (nn,)
-    fm: np.ndarray  # Total mechanical RHS (including thermal)
-    fth: np.ndarray  # Thermal RHS after BCs
-    d_cthm: coo_matrix  # Global thermo-mech coupling derivative (ndofm x nn)
-    fixeddofsm: np.ndarray  # Fixed mechanical DOFs
-    alldofsm: np.ndarray  # All mechanical DOFs
-    freedofsm: np.ndarray  # Free mechanical DOFs
-    fixeddofsth: np.ndarray  # Fixed thermal DOFs
-    alldofsth: np.ndarray  # All thermal DOFs
-    freedofsth: np.ndarray  # Free thermal DOFs
-    fp: np.ndarray  # External mechanical load vector (ndofm,)
+    km: csr_matrix
+    """Global mechanical stiffness (ndofm x ndofm)"""
+    kth: csr_matrix
+    """Global thermal conductivity (nn x nn)"""
+    um: np.ndarray
+    """Mechanical displacements (ndofm,)"""
+    uth: np.ndarray
+    """Temperatures (nn,)"""
+    fm: np.ndarray
+    """Total mechanical RHS (including thermal)"""
+    fth: np.ndarray
+    """Thermal RHS after BCs"""
+    d_cthm: coo_matrix
+    """Global thermo-mech coupling derivative (ndofm x nn)"""
+    fixeddofsm: np.ndarray
+    """Fixed mechanical DOFs"""
+    alldofsm: np.ndarray
+    """All mechanical DOFs"""
+    freedofsm: np.ndarray
+    """Free mechanical DOFs"""
+    fixeddofsth: np.ndarray
+    """Fixed thermal DOFs"""
+    alldofsth: np.ndarray
+    """All thermal DOFs"""
+    freedofsth: np.ndarray
+    """Free thermal DOFs"""
+    fp: np.ndarray
+    """External mechanical load vector (ndofm,)"""
 
 
 def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
