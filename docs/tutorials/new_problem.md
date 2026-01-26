@@ -12,7 +12,7 @@ Note:
 ### Code
 In general, follow the `beams2d/` example.
 
-1. Create a new problem module in [engibench/problems/](engibench/problems/) following the following layout (e.g. [engibench/problems/beams2d/](engibench/problems/beams2d/)), where you later also can add other versions / variant of the problem:
+1. Create a new problem module in [engibench/problems/](source:engibench/problems/) following the following layout (e.g. [engibench/problems/beams2d/](source:engibench/problems/beams2d/)), where you later also can add other versions / variant of the problem:
    ```
    📦 engibench
    └─ 📂 problems
@@ -35,7 +35,7 @@ In general, follow the `beams2d/` example.
    Ideally, all non-breaking changes should not create a new versioned module.
    Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.
 
-2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [beams2d/v0.py](engibench/problems/beams2d/v0.py)).
+2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [beams2d/v0.py](source:engibench/problems/beams2d/v0.py)).
 
    `problems/new_problem/v0.py`
    ```py
@@ -52,8 +52,8 @@ In general, follow the `beams2d/` example.
 
 #### Documentation
 1. Install necessary documentation tools: `pip install ".[doc]"`.
-2. If it is a new problem family, add a new `.md` file in [docs/problems/](docs/problems/) following
-   the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](docs/problems/index.md).
+2. If it is a new problem family, add a new `.md` file in [docs/problems/](source:docs/problems/) following
+   the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](source:docs/problems/index.md).
 3. Add a problem markdown file to the `toctree` in `docs/problems/new_problem.md`. In the md file, use EngiBench's own `problem` directive:
    ``````md
    # Your Problem
