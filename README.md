@@ -111,7 +111,7 @@ If you use EngiBench in your research, please cite the following paper:
 	url = {https://openreview.net/forum?id=YowD33Q89V},
 	urldate = {2025-10-07},
 	author = {Felten, Florian and Apaza, Gabriel and B\¨aunlich, Gerhard and Diniz, Cashen and Dong, Xuliang and Drake, Arthur and Habibi, Milad and Hoffman, Nathaniel J. and Keeler, Matthew and Massoudi, Soheyl and VanGessel, Francis G. and Fuge, Mark},
-	booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)}
+	booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)},
 	year = {2025},
 }
 ```

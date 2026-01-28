@@ -69,11 +69,8 @@ EngiOpt <https://github.com/IDEALLab/EngiOpt>
 ```
 
 ```{toctree}
-:hidden:
-:caption: Utils
 
-utils/container
-utils/slurm
+utils/index
 ```
 
 ```{toctree}

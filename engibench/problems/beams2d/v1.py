@@ -26,13 +26,12 @@ from engibench.utils.upcast import upcast
 class Beams2D(Beams2D_v0):
     r"""Beam 2D topology optimization problem - Version 1 (v1).
 
-    ### v1
+    ## v1
     This version augments v0 by fixing a minor detail in the v0 warm-start optimization process.
     Specifically, when warm-starting from a provided design, a small epsilon value is added to
     avoid zero-density values that could lead to gradient issues. The datasets themselves remain unchanged.
 
     All other behavior is identical to v0.
-    See v0.py for full baseline documentation.
     """
 
     version = 1
