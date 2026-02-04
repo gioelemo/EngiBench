@@ -55,6 +55,7 @@ introduction/api
 problems/airfoil
 problems/beams2d
 problems/thermoelastic2d
+problems/thermoelastic3d
 problems/photonics2d
 problems/power_electronics
 problems/heatconduction
