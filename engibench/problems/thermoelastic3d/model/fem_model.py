@@ -25,15 +25,17 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel3D:
     """Finite Element Analysis (FEA) model for coupled 3D thermoelastic topology optimization."""
 
-    def __init__(self, *, plot: bool = False, eval_only: bool = False) -> None:
+    def __init__(self, *, plot: bool = False, eval_only: bool = False, max_iter: int = MAX_ITERATIONS) -> None:
         """Instantiates a new 3D thermoelastic model.
 
         Args:
             plot: If True, you can hook in your own plotting / volume rendering each iteration.
             eval_only: If True, evaluate the given design once and return objective components only.
+            max_iter: Maximal number of iterations for the `run` method.
         """
         self.plot = plot
         self.eval_only = eval_only
+        self.max_iter = max_iter
 
     def get_initial_design(self, volume_fraction: float, nelx: int, nely: int, nelz: int) -> np.ndarray:
         """Generates the initial design variable field for the optimization process.
@@ -404,7 +406,7 @@ class FeaModel3D:
                 f"|| t_forward:{t_forward:6.3f} + t_adj:{t_adjoints:6.3f} + t_sens:{t_sens:6.3f} + t_mma:{t_mma:6.3f} = {t_total:6.3f}"
             )
 
-            if iterr > MAX_ITERATIONS:
+            if iterr > self.max_iter:
                 break
 
         print("3D optimization finished.")
