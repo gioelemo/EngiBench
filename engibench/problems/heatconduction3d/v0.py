@@ -68,6 +68,8 @@ class HeatConduction3D(Problem[npt.NDArray]):
             int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
         ] = 51
         """Resolution of the design space"""
+        max_iter: int = 100
+        """Maximum number of iterations for the solver in `optimize()`."""
 
     config: Config
 
@@ -134,6 +136,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         volume = config.get("volume", self.config.volume)
         area = config.get("area", self.config.area)
         resolution = config.get("resolution", self.config.resolution)
+        max_iter = config.get("max_iter", self.config.max_iter)
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
 
@@ -141,7 +144,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             run_container_script(
                 self.container_id,
                 Path(__file__).parent / "templates" / "optimize_heat_conduction_3d.py",
-                args=(resolution - 1, volume, area),
+                args=(resolution - 1, volume, area, max_iter),
                 stdin=cli.np_array_to_bytes(starting_point),
                 output_path=f"RES_OPT/OUTPUT={volume}_w={area}.npz",
             )

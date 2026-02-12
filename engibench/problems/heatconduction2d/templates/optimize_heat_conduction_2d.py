@@ -50,7 +50,7 @@ if find_spec("pyadjoint.ipopt") is None:
 # NN: Grid size
 # vol_f: Volume fraction
 # width: Adiabatic boundary width
-NN, vol_f, width, output_path = cast_argv(int, float, float, str)
+NN, vol_f, width, max_iter, output_path = cast_argv(int, float, float, int, str)
 # Load Initial Design Data
 image = np_array_from_stdin()
 
@@ -199,7 +199,12 @@ problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstrain
 # Define filename for IPOPT log
 log_filename = os.path.join(output_dir, f"solution_V={vol_f}_w={width}.txt")
 # Set optimization solver parameters
-solver_params = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100, "file_print_level": 5, "output_file": log_filename}
+solver_params = {
+    "acceptable_tol": 1.0e-3,
+    "maximum_iterations": max_iter,
+    "file_print_level": 5,
+    "output_file": log_filename,
+}
 solver = IPOPTSolver(problem, parameters=solver_params)
 # -------------------------------
 # Store and Save Results
@@ -239,6 +244,7 @@ xdmf_filename = XDMFFile(MPI.comm_world, os.path.join(output_dir, f"final_soluti
 xdmf_filename.write(a_opt)
 print("v={vol_f}")
 print("w={width}")
-np.savez(output_path, design=RES_OPTults, OptiStep=np.array(objective_values))
+# `[:, None]` to make the output array 2D:
+np.savez(output_path, design=RES_OPTults, OptiStep=np.array(objective_values)[:, None])
 for f in glob.glob("/home/fenics/shared/templates/RES_OPT/TEMP*"):
     os.remove(f)

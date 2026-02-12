@@ -76,7 +76,6 @@ class Photonics2D(Problem[npt.NDArray]):
     _space_slice = 8  # Extra space for source/probe slices (pixels)
 
     # Defaults for the optimization parameters
-    _num_optimization_steps_default = 200  # Default number of optimization steps
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
     _num_projections_default = 1
@@ -127,6 +126,8 @@ class Photonics2D(Problem[npt.NDArray]):
             bounded(lower=110, upper=300).warning().category(IMPL),
         ] = 120
         """number of grid cells in y"""
+        num_optimization_steps: int = 200
+        """Maximum number of optimization steps."""
 
     design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.num_elems_x, Config.num_elems_y), dtype=np.float64)
 
@@ -307,7 +308,7 @@ class Photonics2D(Problem[npt.NDArray]):
         num_elems_y = self.num_elems_y
         # Pull out optimization parameters from conditions
         # Parameters specific to optimization
-        num_optimization_steps = conditions.get("num_optimization_steps", self._num_optimization_steps_default)
+        num_optimization_steps = conditions["num_optimization_steps"]
         step_size = conditions.get("step_size", self._step_size_default)
         penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)
         self._eta = conditions.get("eta", self._eta_default)

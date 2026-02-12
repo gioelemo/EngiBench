@@ -19,6 +19,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.problems.thermoelastic2d.model import fea_model
 from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import indices_to_binary_matrix
@@ -84,6 +85,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
         nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
         nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        max_iter: int = fea_model.MAX_ITERATIONS
+        """Maximal number of iterations for optimize."""
 
         @constraint
         @staticmethod
@@ -142,7 +145,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
-        results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
+        max_iter = (config or {}).get("max_iter", self.Config.max_iter)
+        results = FeaModel(plot=False, eval_only=False, max_iter=max_iter).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
         return design, opti_steps

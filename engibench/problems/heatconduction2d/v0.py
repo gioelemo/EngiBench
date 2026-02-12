@@ -72,6 +72,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
             int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
         ] = 101
         """Resolution of the design space for the initialization"""
+        max_iter: int = 100
+        """Maximum number of iterations for the solver in `optimize()`."""
 
     config: Config
 
@@ -137,6 +139,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)
+        max_iter = config.get("max_iter", self.config.max_iter)
         resolution = config.get("resolution", self.config.resolution)
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
@@ -145,7 +148,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
             run_container_script(
                 self.container_id,
                 Path(__file__).parent / "templates" / "optimize_heat_conduction_2d.py",
-                args=(resolution - 1, volume, length),
+                args=(resolution - 1, volume, length, max_iter),
                 stdin=np_array_to_bytes(starting_point),
                 output_path=f"RES_OPT/OUTPUT={volume}_w={length}.npz",
             )
