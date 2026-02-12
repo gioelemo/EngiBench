@@ -57,6 +57,7 @@ class PowerElectronics(Problem[npt.NDArray]):
     dataset_id = "IDEALLab/power_electronics_v0"
     container_id = None
     config: Config
+    Config = Config
 
     def __init__(
         self,
