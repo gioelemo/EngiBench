@@ -244,6 +244,7 @@ xdmf_filename = XDMFFile(MPI.comm_world, os.path.join(output_dir, f"final_soluti
 xdmf_filename.write(a_opt)
 print("v={vol_f}")
 print("w={width}")
-np.savez(output_path, design=RES_OPTults, OptiStep=np.array(objective_values))
+# `[:, None]` to make the output array 2D:
+np.savez(output_path, design=RES_OPTults, OptiStep=np.array(objective_values)[:, None])
 for f in glob.glob("/home/fenics/shared/templates/RES_OPT/TEMP*"):
     os.remove(f)
