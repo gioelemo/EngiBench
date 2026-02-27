@@ -133,6 +133,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     dataset_id = f"IDEALLab/photonics_2d_{Config.num_elems_x}_{Config.num_elems_y}_v0"
     container_id = None
+    config: Config
 
     def __init__(
         self,
@@ -173,7 +174,7 @@ class Photonics2D(Problem[npt.NDArray]):
     def _setup_simulation(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
         # Merge config with default conditions
-        current_conditions = {**dataclasses.asdict(self.conditions), **(config or {})}
+        current_conditions = {**dataclasses.asdict(self.config), **(config or {})}
 
         # Initialize domain geometry
         self._bg_rho, self._design_region, self._input_slice, self._output_slice1, self._output_slice2 = init_domain(
