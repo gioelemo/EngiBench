@@ -43,6 +43,13 @@ if __name__ == "__main__":
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
     parser.add_argument(
+        "-account",
+        "--hpc_account",
+        type=str,
+        required=True,
+        help="HPC account allocation to charge for job submission",
+    )
+    parser.add_argument(
         "-n_designs",
         "--num_designs",
         type=int,
@@ -113,6 +120,9 @@ if __name__ == "__main__":
         help="Minimum sampling bound for angle of attack.",
     )
     args = parser.parse_args()
+
+    # HPC account for job submission
+    hpc_account = args.hpc_account
 
     # Number of samples & flow conditions
     n_designs = args.num_designs
@@ -186,7 +196,7 @@ if __name__ == "__main__":
     slurm_config = slurm.SlurmConfig(
         name="Airfoil_dataset_generation",
         runtime=calculate_runtime(group_size, minutes_per_sim=15),
-        account="fuge-prj-jrl",
+        account=hpc_account,
         ntasks=1,
         cpus_per_task=1,
         log_dir="./sim_logs/",
