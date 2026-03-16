@@ -228,6 +228,7 @@ def run_sbatch(
         ("--output", log_file),
         ("--comment", slurm_args.name),
         ("--time", slurm_args.runtime),
+        ("--account", slurm_args.account),
         ("--constraint", slurm_args.constraint),
         ("--mem-per-cpu", slurm_args.mem_per_cpu),
         ("--mem", slurm_args.mem),

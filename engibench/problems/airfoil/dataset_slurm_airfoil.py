@@ -13,7 +13,7 @@ from engibench.problems.airfoil.simulation_jobs import simulate_slurm
 from engibench.utils import slurm
 
 
-def calculate_runtime(group_size, minutes_per_sim=5):
+def calculate_runtime(group_size, minutes_per_sim=6):
     """Calculate runtime based on group size and (rough) estimate of minutes per simulation."""
     total_minutes = group_size * minutes_per_sim
     hours = total_minutes // 60
@@ -22,7 +22,7 @@ def calculate_runtime(group_size, minutes_per_sim=5):
 
 
 if __name__ == "__main__":
-    """Dataset Generation, Simulation, and Rendering for Airfoil Problem via SLURM.
+    """Dataset Generation and Simulation for Airfoil Problem via SLURM.
 
     This script generates a dataset for the Airfoil problem using the SLURM API, though it could
     be generalized to other problems as well. It includes functions for simulation of designs.
@@ -33,6 +33,12 @@ if __name__ == "__main__":
     -n_aoas, --num_angles_of_attack: How many angles of attack should we use per design & flow condition pairing?
     -group_size, --group_size: How many simulations should we group together on a single cpu?
     -n_slurm_array, --num_slurm_array: How many slurm jobs to spawn and submit via slurm arrays? Note this may be limited by the HPC system.
+    -min_ma, --min_mach_number: Lower bound for mach number
+    -max_ma, --max_mach_number: Upper bound for mach number
+    -min_re, --min_reynolds_number: Lower bound for reynolds number
+    -max_re, --max_reynolds_number: Upper bound for reynolds number
+    -min_aoa, --min_angle_of_attack: Lower bound for angle of attack
+    -max_aoa, --max_angle_of_attack: Upper bound for angle of attack
     """
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
@@ -48,14 +54,7 @@ if __name__ == "__main__":
         "--num_flow_conditions",
         type=int,
         default=1,
-        help="How many flow conditions (Mach Number and Reynolds Number) should we sample for each design?",
-    )
-    parser.add_argument(
-        "-n_aoas",
-        "--num_angles_of_attack",
-        type=int,
-        default=1,
-        help="How many angles of attack should we sample for each design?",
+        help="How many flow conditions (Mach Number, Reynolds Number, Angle of Attack) should we sample for each design?",
     )
     parser.add_argument(
         "-group_size",
@@ -71,21 +70,73 @@ if __name__ == "__main__":
         default=1000,
         help="What is the maximum size of the Slurm array (Will vary from HPC system to HPC system)?",
     )
+    parser.add_argument(
+        "-min_ma",
+        "--min_mach_number",
+        type=float,
+        default=0.5,
+        help="Minimum sampling bound for Mach Number.",
+    )
+    parser.add_argument(
+        "-max_ma",
+        "--max_mach_number",
+        type=float,
+        default=0.9,
+        help="Minimum sampling bound for Mach Number.",
+    )
+    parser.add_argument(
+        "-min_re",
+        "--min_reynolds_number",
+        type=float,
+        default=1.0e6,
+        help="Minimum sampling bound for Reynolds Number.",
+    )
+    parser.add_argument(
+        "-max_re",
+        "--max_reynolds_number",
+        type=float,
+        default=2.0e7,
+        help="Minimum sampling bound for Reynolds Number.",
+    )
+    parser.add_argument(
+        "-min_aoa",
+        "--min_angle_of_attack",
+        type=float,
+        default=0.0,
+        help="Minimum sampling bound for angle of attack.",
+    )
+    parser.add_argument(
+        "-max_aoa",
+        "--max_angle_of_attack",
+        type=float,
+        default=20.0,
+        help="Minimum sampling bound for angle of attack.",
+    )
     args = parser.parse_args()
 
+    # Number of samples & flow conditions
     n_designs = args.num_designs
-    n_flows = args.num_flow_conditions
-    n_aoas = args.num_angles_of_attack
+    n_conditions = args.num_flow_conditions
+
+    # Slurm parameters
     group_size = args.group_size
     n_slurm_array = args.num_slurm_array
+
+    # Flow parameter and angle of attack ranges
+    min_ma = args.min_mach_number
+    max_ma = args.max_mach_number
+    min_re = args.min_reynolds_number
+    max_re = args.max_reynolds_number
+    min_aoa = args.min_angle_of_attack
+    max_aoa = args.max_angle_of_attack
 
     # ============== Problem-specific elements ===================
     # The following elements are specific to the problem and should be modified accordingly
 
     # Define flow parameter and angle of attack ranges
-    Ma_min, Ma_max = 0.5, 0.9  # Mach number range
-    Re_min, Re_max = 1.0e6, 2.0e7  # Reynolds number range
-    aoa_min, aoa_max = 0.0, 20.0  # Angle of attack range
+    print(f"Mach number:      {min_ma:.2e} to {max_ma:.2e}")
+    print(f"Reynolds number:  {min_re:.2e} to {max_re:.2e}")
+    print(f"Angle of attack:  {min_aoa:.1f} to {max_aoa:.1f}")
 
     # Load airfoil designs from HF Database
     ds = load_dataset("IDEALLab/airfoil_v0")
@@ -99,34 +150,34 @@ if __name__ == "__main__":
     )
 
     # Use specified number of designs
-    designs = designs[:n_designs]
-
-    # Generate LHS samples
-    rng = np.random.default_rng(seed=42)  # Optional seed for reproducibility
-    sampler = qmc.LatinHypercube(d=2, seed=rng)
-    samples = sampler.random(n=n_designs * n_flows)  # n samples needed
-
-    # Scale to your flow domain
-    bounds = np.array([[Ma_min, Ma_max], [Re_min, Re_max]])
-    scaled_samples = qmc.scale(samples, bounds[:, 0], bounds[:, 1])
-    mach_values = scaled_samples[:, 0]
-    reynolds_values = scaled_samples[:, 1]
+    if n_designs < len(designs):
+        designs = designs[:n_designs]
 
     # Generate all simulation configurations
     config_id = 0
     simulate_configs_designs = []
-    for i, design in enumerate(designs):
-        for j in range(n_flows):
-            ma = mach_values[i * n_flows + j]
-            re = reynolds_values[i * n_flows + j]
-            for alpha in rng.uniform(low=aoa_min, high=aoa_max, size=n_aoas):
-                problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
-                config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
-                config["design"] = design["coords"]
-                simulate_configs_designs.append(config)
-                config_id += 1
+    for design in designs:
+        # Generate LHS samples
+        sampler = qmc.LatinHypercube(d=3)
+        samples = sampler.random(n=n_conditions)  # n samples needed
 
-    print(f"Generated {len(simulate_configs_designs)} configurations for simulation.")
+        # Scale to your flow domain
+        bounds = np.array([[min_ma, max_ma], [min_re, max_re], [min_aoa, max_aoa]])
+        scaled_samples = qmc.scale(samples, bounds[:, 0], bounds[:, 1])
+        mach_values = scaled_samples[:, 0]
+        reynolds_values = scaled_samples[:, 1]
+        aoa_values = scaled_samples[:, 2]
+
+        for j in range(n_conditions):
+            ma = mach_values[j]
+            re = reynolds_values[j]
+            alpha = aoa_values[j]
+
+            problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
+            config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
+            config["design"] = design["coords"]
+            simulate_configs_designs.append(config)
+            config_id += 1
 
     # Calculate total number of simulation jobs and number of sbatch maps needed
     n_simulations = len(simulate_configs_designs)
@@ -134,12 +185,12 @@ if __name__ == "__main__":
 
     slurm_config = slurm.SlurmConfig(
         name="Airfoil_dataset_generation",
-        runtime=calculate_runtime(group_size, minutes_per_sim=5),
+        runtime=calculate_runtime(group_size, minutes_per_sim=15),
+        account="fuge-prj-jrl",
         ntasks=1,
         cpus_per_task=1,
         log_dir="./sim_logs/",
     )
-    print(calculate_runtime(group_size, minutes_per_sim=5))
 
     submitted_jobs = []
     for ibatch in range(int(n_sbatch_maps)):
