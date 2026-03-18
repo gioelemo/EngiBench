@@ -4,7 +4,9 @@ This script generates a dataset for the Airfoil problem using the SLURM API
 """
 
 from argparse import ArgumentParser
+import sys
 
+from datasets import concatenate_datasets
 from datasets import load_dataset
 import numpy as np
 from scipy.stats import qmc
@@ -43,6 +45,20 @@ if __name__ == "__main__":
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
     parser.add_argument(
+        "-account",
+        "--hpc_account",
+        type=str,
+        required=True,
+        help="HPC account allocation to charge for job submission",
+    )
+    parser.add_argument(
+        "-type",
+        "--job_type",
+        type=str,
+        required=True,
+        help="Engibench job type (simulate or optimization) for submission",
+    )
+    parser.add_argument(
         "-n_designs",
         "--num_designs",
         type=int,
@@ -62,6 +78,13 @@ if __name__ == "__main__":
         type=int,
         default=2,
         help="How many simulations do you wish to batch within each individual slurm job?",
+    )
+    parser.add_argument(
+        "-minutes_per_sim",
+        "--minutes_per_simulation",
+        type=int,
+        default=15,
+        help="How long will each individual SLURM job take (in minutes) for either simulate or optimize? This is used to calculate the runtime for each job submission.",
     )
     parser.add_argument(
         "-n_slurm_array",
@@ -114,6 +137,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # HPC account for job submission
+    hpc_account = args.hpc_account
+
+    # Job type (simulate or optimize)
+    job_type = args.job_type
+    if job_type not in ["simulate", "optimize"]:
+        raise ValueError(f"Invalid job type: {job_type}. Must be 'simulate' or 'optimize'.")
+
     # Number of samples & flow conditions
     n_designs = args.num_designs
     n_conditions = args.num_flow_conditions
@@ -121,6 +152,7 @@ if __name__ == "__main__":
     # Slurm parameters
     group_size = args.group_size
     n_slurm_array = args.num_slurm_array
+    minutes_per_sim = args.minutes_per_simulation
 
     # Flow parameter and angle of attack ranges
     min_ma = args.min_mach_number
@@ -138,22 +170,14 @@ if __name__ == "__main__":
     print(f"Reynolds number:  {min_re:.2e} to {max_re:.2e}")
     print(f"Angle of attack:  {min_aoa:.1f} to {max_aoa:.1f}")
 
-    # Load airfoil designs from HF Database
+    # --- Dataset Loading ---
     ds = load_dataset("IDEALLab/airfoil_v0")
-    designs = (
-        ds["train"]["initial_design"]
-        + ds["train"]["optimal_design"]
-        + ds["val"]["initial_design"]
-        + ds["val"]["optimal_design"]
-        + ds["test"]["initial_design"]
-        + ds["test"]["optimal_design"]
-    )
-
-    # Use specified number of designs
+    all_data = concatenate_datasets([ds[split] for split in ds])
+    designs = all_data["initial_design"] + all_data["optimal_design"]
     if n_designs < len(designs):
         designs = designs[:n_designs]
 
-    # Generate all simulation configurations
+    # --- Config Generation ---
     config_id = 0
     simulate_configs_designs = []
     for design in designs:
@@ -185,8 +209,8 @@ if __name__ == "__main__":
 
     slurm_config = slurm.SlurmConfig(
         name="Airfoil_dataset_generation",
-        runtime=calculate_runtime(group_size, minutes_per_sim=15),
-        account="fuge-prj-jrl",
+        runtime=calculate_runtime(group_size, minutes_per_sim=minutes_per_sim),
+        account=hpc_account,
         ntasks=1,
         cpus_per_task=1,
         log_dir="./sim_logs/",
@@ -197,16 +221,20 @@ if __name__ == "__main__":
         sim_batch_configs = simulate_configs_designs[
             ibatch * group_size * n_slurm_array : (ibatch + 1) * group_size * n_slurm_array
         ]
-        print(len(sim_batch_configs))
         print(f"Submitting batch {ibatch + 1}/{int(n_sbatch_maps)}")
 
-        job_array = slurm.sbatch_map(
-            f=simulate_slurm,
-            args=sim_batch_configs,
-            slurm_args=slurm_config,
-            group_size=group_size,  # Number of jobs to batch in sequence to reduce job array size
-            work_dir="scratch",
-        )
+        if job_type == "simulate":
+            job_array = slurm.sbatch_map(
+                f=simulate_slurm,
+                args=sim_batch_configs,
+                slurm_args=slurm_config,
+                group_size=group_size,  # Number of jobs to batch in sequence to reduce job array size
+                work_dir="scratch",
+            )
+        elif job_type == "optimize":
+            sys.exit(
+                'Optimize function not yet implemented for SLURM dataset generation script. Please use "simulate" for job_type argument.'
+            )
 
         # Save the job array reference
         submitted_jobs.append(job_array)
