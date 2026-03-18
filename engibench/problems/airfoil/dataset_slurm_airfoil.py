@@ -6,11 +6,12 @@ This script generates a dataset for the Airfoil problem using the SLURM API
 from argparse import ArgumentParser
 import sys
 
-from datasets import load_dataset, concatenate_datasets
+from datasets import concatenate_datasets
+from datasets import load_dataset
 import numpy as np
 from scipy.stats import qmc
 
-from engibench.problems.airfoil.simulation_jobs import simulate_slurm, optimize_slurm
+from engibench.problems.airfoil.simulation_jobs import simulate_slurm
 from engibench.utils import slurm
 
 
@@ -231,7 +232,9 @@ if __name__ == "__main__":
                 work_dir="scratch",
             )
         elif job_type == "optimize":
-            sys.exit('Optimize function not yet implemented for SLURM dataset generation script. Please use "simulate" for job_type argument.')
+            sys.exit(
+                'Optimize function not yet implemented for SLURM dataset generation script. Please use "simulate" for job_type argument.'
+            )
 
         # Save the job array reference
         submitted_jobs.append(job_array)

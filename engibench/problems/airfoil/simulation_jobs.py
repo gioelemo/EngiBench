@@ -55,9 +55,9 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
         "configuration_id": configuration_id,
     }
 
+
 def optimize_slurm(problem_configuration: dict, configuration_id: int, design: list):
-    """Takes starting point (design coordinate and angle of attack) and config (mach, reynolds, angle of attack), then runs
-       the aerodynamic optimization.
+    """Takes starting point (design coordinate and angle of attack) and config (mach, reynolds, angle of attack), then runs the aerodynamic optimization.
 
     Any arguments should be things that you want to change across the different jobs, and anything
     that is the same/static across the runs should just be defined inside this function.
@@ -75,4 +75,3 @@ def optimize_slurm(problem_configuration: dict, configuration_id: int, design: l
         "optimized_configuration": Problem configuration parameters for optimized design (optimized coordinates and angle of attack)
         "configuration_id": Identifier for specific simulation configurations
     """
-    pass
