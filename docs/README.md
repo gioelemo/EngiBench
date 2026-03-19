@@ -74,7 +74,7 @@ You can then open http://localhost:8000 in your browser to watch a live updated 
 
 ## Writing Tutorials
 
-We use Sphinx-Gallery to build the tutorials inside the `docs/tutorials` directory. Check `docs/tutorials/demo.py` to see an example of a tutorial and [Sphinx-Gallery documentation](https://sphinx-gallery.github.io/stable/syntax.html) for more information.
+We use Sphinx-Gallery to build the tutorials inside the `docs/tutorials` directory. Check [Sphinx-Gallery documentation](https://sphinx-gallery.github.io/stable/syntax.html) for more information.
 
 To convert Jupyter Notebooks to the python tutorials you can use [this script](https://gist.github.com/mgoulao/f07f5f79f6cd9a721db8a34bba0a19a7).
 

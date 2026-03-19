@@ -77,15 +77,9 @@ utils/index
 ```{toctree}
 :hidden:
 :glob:
-:caption: Tutorials
-
-tutorials/*
-```
-
-```{toctree}
-:hidden:
 :caption: Development
 
 Github <https://github.com/IDEALLab/EngiBench>
 Contribute to the Docs <https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md>
+development/*
 ```
