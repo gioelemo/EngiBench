@@ -14,6 +14,33 @@ Problem conditions include:
 
 Our implementation is based on the well-known 88-line MATLAB code for compliance minimization by Andreassen et al. (2011), adapted to Python.
 
+Since **v2** the optimizer follows the solver-side approach of AutoSiMP ([arXiv:2603.27000](https://arxiv.org/abs/2603.27000)):
+a three-field SIMP formulation (design field → density filter → Heaviside projection → physical density) with pluggable
+continuation control, an eight-check structural evaluator and a closed-loop retry. `simulate` is unchanged, so the datasets
+below and the objective values stay valid across all versions; only `optimize` behaves differently.
+
+```python
+from engibench.problems.beams2d import Beams2D
+
+problem = Beams2D(seed=0)
+design, history = problem.optimize()
+
+print(problem.last_quality_report)   # the eight checks
+print(history[-1].beta, history[-1].penal)  # the continuation state of the last step
+```
+
+A custom Direct Numeric Control controller -- for instance an LLM agent, as in the paper -- is any callable mapping an
+`Observation` to a `ControlSignal`:
+
+```python
+from engibench.problems.beams2d.autosimp import ControlSignal, Observation
+
+def my_controller(obs: Observation) -> ControlSignal:
+    return ControlSignal(penal=3.0, beta=min(16.0, 1.0 + obs.iteration / 5), rmin=2.0, move=0.2)
+
+design, history = problem.optimize(controller=my_controller)
+```
+
 The dataset includes:
 - Optimal beam structures for various problem settings,
 - Their corresponding conditions and objective values,
