@@ -3,9 +3,9 @@
 
 """Beams 2D problem - AutoSiMP three-field formulation."""
 
-from copy import deepcopy
 import dataclasses
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Annotated, Any
 
 import numpy as np
@@ -29,6 +29,8 @@ from engibench.problems.beams2d.autosimp import heaviside_projection
 from engibench.problems.beams2d.autosimp import Observation
 from engibench.problems.beams2d.autosimp import QualityReport
 from engibench.problems.beams2d.autosimp import ScheduleController
+from engibench.problems.beams2d.autosimp import TailSpec
+from engibench.problems.beams2d.autosimp import ThreeFieldController
 from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import h_mat
@@ -41,7 +43,7 @@ from engibench.problems.beams2d.v0 import main
 from engibench.problems.beams2d.v1 import Beams2D as Beams2D_v1
 from engibench.utils.upcast import upcast
 
-CONTINUATION_MODES = ("schedule", "fixed")
+CONTINUATION_MODES = ("schedule", "three_field", "fixed")
 
 
 def _validate_continuation(continuation: str) -> None:
@@ -59,6 +61,7 @@ class ControlledOptiStep(ExtendedOptiStep):
         rmin: Density filter radius used for this iteration.
         move: Optimality-criteria move limit used for this iteration.
         attempt: Zero-based index of the solver attempt this step belongs to.
+        phase: Solver phase this step belongs to, ``"exploration"`` or ``"tail"``.
     """
 
     penal: float = 3.0
@@ -66,6 +69,7 @@ class ControlledOptiStep(ExtendedOptiStep):
     rmin: float = 2.0
     move: float = 0.2
     attempt: int = 0
+    phase: str = "exploration"
 
 
 class Beams2D(Beams2D_v1):
@@ -88,28 +92,41 @@ class Beams2D(Beams2D_v1):
     through the projection and the filter, so the optimizer remains exactly
     consistent with the physics it reports.
 
-    Three further AutoSiMP components are exposed:
+    Four further AutoSiMP components are exposed:
 
     * **Pluggable continuation control.** At every iteration a controller
       receives an [`Observation`][engibench.problems.beams2d.autosimp.Observation]
       and returns the four *Direct Numeric Control* parameters $(p, \beta,
-      r_{\min}, \delta)$. `continuation="schedule"` (default) uses the
-      deterministic budget-aware schedule, `continuation="fixed"` is the
-      no-continuation baseline, and any callable can be passed through
+      r_{\min}, \delta)$. `continuation` selects
+      [`ScheduleController`][engibench.problems.beams2d.autosimp.ScheduleController]
+      (`"schedule"`, the paper's deterministic four-phase schedule and the default),
+      [`ThreeFieldController`][engibench.problems.beams2d.autosimp.ThreeFieldController]
+      (`"three_field"`, the standard academic continuation the paper uses as a
+      baseline) or [`FixedController`][engibench.problems.beams2d.autosimp.FixedController]
+      (`"fixed"`, no continuation and no tail). Any callable can be passed through
       `optimize(controller=...)` -- that is the hook an LLM agent plugs into.
+    * **Sharpening tail with a validity gate.** Every non-fixed controller ends
+      with a short tail at high sharpness and a small move limit, restarted from
+      the best snapshot that reached the target penalization while satisfying the
+      volume constraint, or from uniform density if there is none. The paper
+      reports this tail as the primary driver of final topology quality.
     * **Eight-check structural evaluator.** Connectivity, compliance ratio,
       grayness, volume fraction and convergence gate the run; thin-member
       fraction, checkerboard index and load-path efficiency are recorded for
       information. The report of the last `optimize` call is available as
       `problem.last_quality_report`, and any design can be checked with
       [`evaluate_quality`][engibench.problems.beams2d.v2.Beams2D.evaluate_quality].
-    * **Closed-loop retry.** When the gating checks fail, the solver escalates
-      its own settings (filter radius, sharpness cap, move limit, iteration
-      budget) and re-runs, up to `max_retries` times, keeping the best attempt.
+    * **Closed-loop retry.** When a gating check fails, the evaluator's rerun hint
+      grows the iteration budget by 30% or adjusts the volume target by the
+      observed deviation, and the solve is repeated up to `max_retries` times.
 
     `simulate` is unchanged: the compliance of a given density field is the same
     physics as in v0/v1, so objective values stay comparable across versions and
-    the v0 datasets remain valid.
+    the v0 datasets remain valid. Where the paper's absolute solver values collide
+    with an EngiBench *condition* -- it runs its tail at $p = 4.5$ and
+    $r_{\min} = 1.20$, both of which are part of this problem's definition and of
+    its datasets -- the condition wins by default and the paper's value is one
+    config entry away (`tail_penal`, `tail_rmin`).
 
     The remaining two AutoSiMP modules -- the LLM configurator and the
     boundary-condition generator -- are deliberately not reimplemented: the
@@ -139,20 +156,32 @@ class Beams2D(Beams2D_v1):
         """Initial penalization exponent of the continuation (the target is `penal`)"""
         penal_step: Annotated[float, greater_than(0.0).category(IMPL)] = 0.5
         """Increment of the penalization continuation"""
-        penal_fraction: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.4
-        """Fraction of the iteration budget over which `penal` ramps to its target"""
+        penal_gate: float | None = None
+        """Penalization above which a snapshot may become the tail's restart point (defaults to `penal`)"""
         move_init: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.2
         """Initial optimality-criteria move limit"""
         move_min: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.05
-        """Final optimality-criteria move limit"""
+        """Optimality-criteria move limit of the convergence phase"""
         continuation: str = "schedule"
-        """Continuation controller to use, either `"schedule"` or `"fixed"`"""
+        """Continuation controller, one of `"schedule"`, `"three_field"` or `"fixed"`"""
         stagnation_patience: Annotated[int, bounded(lower=1).category(IMPL)] = 3
-        """Consecutive stagnating iterations required before the solver exits early"""
+        """Consecutive stagnating iterations required before a phase exits early"""
+        tail_iters: Annotated[int, bounded(lower=0).category(IMPL)] = 40
+        """Length of the sharpening tail, clamped to half the iteration budget (0 disables it)"""
+        tail_beta: Annotated[float, greater_than(0.0).category(IMPL)] = 32.0
+        """Projection sharpness held for the whole sharpening tail"""
+        tail_penal: float | None = None
+        """Penalization of the sharpening tail (defaults to `penal`; the paper uses 4.5)"""
+        tail_rmin: float | None = None
+        """Filter radius of the sharpening tail (defaults to `rmin`; the paper uses 1.20)"""
+        tail_move: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.05
+        """Optimality-criteria move limit of the sharpening tail"""
+        connectivity_tol: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.99
+        """Minimum admissible share of the solid material connected to the supports"""
         grayness_tol: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.15
-        """Maximum admissible non-discreteness measure of the final design"""
+        """Maximum admissible grayness index of the final design"""
         volfrac_tol: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.02
-        """Maximum admissible relative deviation of the final volume fraction from its target"""
+        """Maximum admissible absolute deviation of the final volume fraction from its target"""
         compliance_ratio_tol: Annotated[float, bounded(lower=1.0).category(IMPL)] = 2.0
         """Maximum admissible ratio between the final and the best compliance"""
         stability_tol: Annotated[float, bounded(lower=0.0).category(IMPL)] = 0.005
@@ -202,21 +231,35 @@ class Beams2D(Beams2D_v1):
             config: The configuration of the run.
 
         Returns:
-            ControllerLike: A :class:`ScheduleController` for ``continuation="schedule"``
-            and a :class:`FixedController` for ``continuation="fixed"``.
+            ControllerLike: A :class:`ScheduleController` for ``continuation="schedule"``,
+            a :class:`ThreeFieldController` for ``continuation="three_field"`` and a
+            :class:`FixedController` for ``continuation="fixed"``.
         """
         _validate_continuation(config.continuation)
         if config.continuation == "fixed":
-            # No continuation: the target penalization, the initial (mild) sharpness and a
-            # constant move limit, i.e. the classical two-field behaviour of v0/v1.
+            # AutoSiMP's no-intervention baseline: no continuation and no sharpening tail.
             return FixedController(penal=config.penal, beta=config.beta_init, rmin=config.rmin, move=config.move_init)
+
+        tail = _make_tail(config)
+        if config.continuation == "three_field":
+            return ThreeFieldController(
+                penal_target=config.penal,
+                rmin=config.rmin,
+                max_iter=_exploration_budget(config),
+                tail=tail,
+                penal_init=min(config.penal_init, config.penal),
+                beta_init=config.beta_init,
+                beta_max=max(config.beta_max, config.beta_init),
+                move=config.move_init,
+                rmin_final=config.tail_rmin,
+            )
         return ScheduleController(
             penal_target=config.penal,
             rmin=config.rmin,
-            max_iter=config.max_iter,
+            max_iter=_exploration_budget(config),
+            tail=tail,
             penal_init=min(config.penal_init, config.penal),
             penal_step=config.penal_step,
-            penal_fraction=config.penal_fraction,
             beta_init=config.beta_init,
             beta_max=max(config.beta_max, config.beta_init),
             move_init=config.move_init,
@@ -236,25 +279,29 @@ class Beams2D(Beams2D_v1):
     ) -> tuple[np.ndarray, list[ExtendedOptiStep]]:
         """Optimizes the design of a beam with the AutoSiMP three-field solver.
 
-        The run is wrapped in AutoSiMP's closed loop: the eight-check evaluator
-        inspects the result and, if a gating check fails, the solver settings are
-        escalated and the optimization is repeated, up to ``max_retries`` times.
-        The best attempt is returned and its report is stored in
-        :attr:`last_quality_report`.
+        Each attempt runs an exploration phase under the continuation controller
+        followed by the shared sharpening tail, and is then handed to the
+        eight-check evaluator. If a gating check fails, the evaluator's rerun hint
+        adjusts the settings and the solve is repeated, up to ``max_retries``
+        times. As in the paper's Algorithm 1 the loop returns the lowest-compliance
+        attempt and stops as soon as one passes; unlike the paper, the report
+        stored in :attr:`last_quality_report` is the one of the attempt actually
+        returned, so design and report always describe the same beam.
 
         Args:
             starting_point (npt.NDArray or None): The design to begin warm-start optimization from (optional).
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the optimization.
             controller (ControllerLike or None): A Direct Numeric Control callable mapping an
-                :class:`Observation` to a :class:`ControlSignal`. Defaults to the controller
+                :class:`Observation` to a :class:`ControlSignal`, optionally also exposing
+                ``initialize()``, ``finalize()`` and ``reset()``. Defaults to the controller
                 described by ``config["continuation"]``. An explicit controller is reused as-is
                 by every retry, so only the escalations it does not itself override (notably the
                 iteration budget) reach it; pass ``max_retries=0`` to run exactly once.
 
         Returns:
             Tuple[np.ndarray, list[ExtendedOptiStep]]: The optimized design and the
-            history of the best attempt. Each step is a :class:`ControlledOptiStep`
-            and also carries the solver parameters used for that iteration.
+            history of the returned attempt. Each step is a :class:`ControlledOptiStep`
+            and also carries the solver parameters and the phase it belongs to.
         """
         base_config = dataclasses.replace(self.config, **(config or {}))
         _validate_continuation(base_config.continuation)
@@ -267,7 +314,7 @@ class Beams2D(Beams2D_v1):
             run_controller = controller if controller is not None else self.make_controller(attempt_config)
             design, history, report = self._run_attempt(attempt_config, run_controller, starting_point, attempt)
             reports.append(report)
-            if best is None or _is_better(report, history, best[2], best[1]):
+            if best is None or _final_compliance(history) < _final_compliance(best[1]):
                 best = (design, history, report)
             if report.passed:
                 break
@@ -286,70 +333,98 @@ class Beams2D(Beams2D_v1):
         starting_point: npt.NDArray | None,
         attempt: int,
     ) -> tuple[np.ndarray, list[ExtendedOptiStep], QualityReport]:
-        """Run one three-field SIMP optimization and evaluate its result."""
+        """Run one exploration phase plus sharpening tail, then evaluate the result."""
         nelx, nely = cfg.nelx, cfg.nely
         st = State.new(nelx, nely, cfg.rmin, cfg.forcedist)
         self.__st = st
-        if hasattr(controller, "reset"):
-            controller.reset()
 
-        x = _initial_design(cfg, starting_point)
-        signal = ControlSignal(penal=cfg.penal_init, beta=cfg.beta_init, rmin=cfg.rmin, move=cfg.move_init)
-        active_rmin = cfg.rmin
-        xTilde, xPhys, xPrint = _three_fields(st, x, cfg, signal.beta)
-        ce = np.zeros(nelx * nely)
+        reset = getattr(controller, "reset", None)
+        if callable(reset):
+            reset()
+        tail = _controller_tail(controller, cfg)
 
-        optisteps_history: list[ExtendedOptiStep] = []
-        compliance_history: list[float] = []
-        change, stagnation, loop = 1.0, 0, 0
-        early_exit = False
+        run = _RunState(
+            x=_initial_design(cfg, starting_point),
+            signal=_controller_initial(controller, cfg),
+            rmin=cfg.rmin,
+        )
+        run.x_print = _three_fields(st, run.x, cfg, run.signal.beta)[2]
 
-        while loop < cfg.max_iter:
-            signal = controller(_observe(cfg, xPhys, compliance_history, change, stagnation, loop, signal))
-            if not np.isclose(signal.rmin, active_rmin):
-                active_rmin = float(signal.rmin)
-                st.H = h_mat(nelx, nely, active_rmin)
-                st.Hs = st.H.sum(1)
+        self._run_phase(cfg, st, controller, run, _exploration_budget(cfg), attempt, "exploration")
 
-            xTilde, xPhys, xPrint = _three_fields(st, x, cfg, signal.beta)
-            step_cfg = dataclasses.replace(cfg, penal=signal.penal)
-            ce = calc_sensitivity(xPrint, st=st, cfg=dataclasses.asdict(step_cfg))
-            self.reset_called = True  # override for multiple reset calls in optimize
-            c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(upcast(step_cfg, self.SimulateConfig)))
+        if tail is not None and tail.iterations > 0:
+            # Validity gate: the tail restarts from the best snapshot that reached the target
+            # penalization while satisfying the volume constraint, or from uniform density.
+            run.x = run.snapshot if run.snapshot is not None else cfg.volfrac * np.ones(nelx * nely)
+            run.early_exit = False
+            self._run_phase(cfg, st, FixedController(**_tail_kwargs(tail)), run, tail.iterations, attempt, "tail")
 
-            optisteps_history.append(_make_step(np.array(c), loop, xPrint, signal, attempt))
-            compliance_history.append(float(c[0]))
-            loop += 1
-
-            dc, dv = _chain_sensitivities(st, cfg, signal, xTilde, xPhys, xPrint, ce)
-            xnew = _oc_update(x, st, dc, dv, cfg, signal)
-            change = float(np.max(np.abs(xnew - x)))
-            x = deepcopy(xnew)
-
-            stagnation = stagnation + 1 if change <= st.min_change else 0
-            if stagnation >= cfg.stagnation_patience:
-                early_exit = True
-                break
-
-        # `xPrint` and `ce` are the fields of the last *evaluated* design, so the returned
-        # design, the last recorded compliance and the report below all describe the same beam.
-        energy = (st.Emin + xPrint**signal.penal * (st.Emax - st.Emin)) * ce
         report = evaluate(
-            xPrint.reshape(nelx, nely),
-            np.asarray(energy).reshape(nelx, nely),
+            run.x_print.reshape(nelx, nely),
             st,
             volfrac=cfg.volfrac,
-            rmin=active_rmin,
-            compliance_history=compliance_history,
-            early_exit=early_exit,
+            compliance_history=run.compliance,
+            early_exit=run.early_exit,
             attempt=attempt,
+            connectivity_tol=cfg.connectivity_tol,
             grayness_tol=cfg.grayness_tol,
             volfrac_tol=cfg.volfrac_tol,
             compliance_ratio_tol=cfg.compliance_ratio_tol,
             stability_tol=cfg.stability_tol,
             stability_window=cfg.stability_window,
         )
-        return design_to_image(xPrint, nelx, nely), optisteps_history, report
+        return design_to_image(run.x_print, nelx, nely), run.steps, report
+
+    def _run_phase(  # noqa: PLR0913
+        self,
+        cfg: "Beams2D.Config",
+        st: State,
+        controller: ControllerLike,
+        run: "_RunState",
+        budget: int,
+        attempt: int,
+        phase: str,
+    ) -> None:
+        """Advance ``run`` by up to ``budget`` three-field SIMP iterations under ``controller``."""
+        nelx, nely = cfg.nelx, cfg.nely
+        gate = cfg.penal_gate if cfg.penal_gate is not None else cfg.penal
+        loop = 0
+
+        while loop < budget:
+            run.signal = controller(_observe(cfg, run, budget, loop))
+            if not np.isclose(run.signal.rmin, run.rmin):
+                run.rmin = float(run.signal.rmin)
+                st.H = h_mat(nelx, nely, run.rmin)
+                st.Hs = st.H.sum(1)
+
+            run.x_tilde, run.x_phys, run.x_print = _three_fields(st, run.x, cfg, run.signal.beta)
+            step_cfg = dataclasses.replace(cfg, penal=run.signal.penal)
+            run.ce = calc_sensitivity(run.x_print, st=st, cfg=dataclasses.asdict(step_cfg))
+            self.reset_called = True  # override for multiple reset calls in optimize
+            c = self.simulate(run.x_print, ce=run.ce, config=dataclasses.asdict(upcast(step_cfg, self.SimulateConfig)))
+
+            compliance = float(c[0])
+            run.steps.append(_make_step(np.array(c), len(run.steps), run.x_print, run.signal, attempt, phase))
+            run.compliance.append(compliance)
+
+            # Validity gate: remember the cheapest design that is already penalized and feasible.
+            feasible = abs(float(np.mean(run.x_print)) - cfg.volfrac) <= cfg.volfrac_tol
+            if phase != "tail" and run.signal.penal >= gate and feasible and compliance < run.snapshot_compliance:
+                run.snapshot_compliance = compliance
+                run.snapshot = run.x.copy()
+
+            loop += 1
+
+            dc, dv = _chain_sensitivities(st, cfg, run.signal, run.x_tilde, run.x_phys, run.x_print, run.ce)
+            xnew = _oc_update(run.x, st, dc, dv, cfg, run.signal)
+            run.change = float(np.max(np.abs(xnew - run.x)))
+            run.x = xnew
+
+            run.stagnation = run.stagnation + 1 if run.change <= st.min_change else 0
+            if run.stagnation >= cfg.stagnation_patience:
+                run.early_exit = True
+                return
+        run.early_exit = False
 
     # ----------------------------------------------------------------------------------
     # Evaluation
@@ -381,17 +456,17 @@ class Beams2D(Beams2D_v1):
         flat = image_to_design(design) if design.ndim > 1 else np.asarray(design, dtype=float)
         st = State.new(cfg.nelx, cfg.nely, cfg.rmin, cfg.forcedist)
         self.__st = st
-        ce = calc_sensitivity(flat, st=st, cfg=dataclasses.asdict(cfg))
-        energy = (st.Emin + flat**cfg.penal * (st.Emax - st.Emin)) * ce
-        history = compliance_history or [float(np.sum(energy))]
+        if not compliance_history:
+            ce = calc_sensitivity(flat, st=st, cfg=dataclasses.asdict(cfg))
+            compliance = float(((st.Emin + flat**cfg.penal * (st.Emax - st.Emin)) * ce).sum())
+            compliance_history = [compliance]
         return evaluate(
             flat.reshape(cfg.nelx, cfg.nely),
-            np.asarray(energy).reshape(cfg.nelx, cfg.nely),
             st,
             volfrac=cfg.volfrac,
-            rmin=cfg.rmin,
-            compliance_history=history,
+            compliance_history=compliance_history,
             early_exit=early_exit,
+            connectivity_tol=cfg.connectivity_tol,
             grayness_tol=cfg.grayness_tol,
             volfrac_tol=cfg.volfrac_tol,
             compliance_ratio_tol=cfg.compliance_ratio_tol,
@@ -410,6 +485,97 @@ class Beams2D(Beams2D_v1):
         self.__st = State()
         self.last_quality_report = None
         self.quality_reports = ()
+
+
+@dataclass
+class _RunState:
+    """Mutable state carried across the phases of one solver attempt.
+
+    Attributes:
+        x: The current design field.
+        signal: The control signal of the last iteration.
+        rmin: The filter radius the assembled filter matrix currently uses.
+        x_tilde: The filtered field of the last iteration.
+        x_phys: The projected physical field of the last iteration.
+        x_print: The printed field of the last *evaluated* design.
+        ce: Element-wise strain energy of the last evaluated design.
+        steps: The optimization history, across all phases.
+        compliance: The compliance recorded at every iteration.
+        change: Infinity norm of the last design-variable update.
+        stagnation: Consecutive iterations with ``change`` below the tolerance.
+        early_exit: Whether the last phase stopped before exhausting its budget.
+        snapshot: The best design field that passed the validity gate.
+        snapshot_compliance: The compliance of ``snapshot``.
+    """
+
+    x: npt.NDArray[np.float64]
+    signal: ControlSignal
+    rmin: float
+    x_tilde: npt.NDArray[np.float64] = field(default_factory=lambda: np.zeros(0))
+    x_phys: npt.NDArray[np.float64] = field(default_factory=lambda: np.zeros(0))
+    x_print: npt.NDArray[np.float64] = field(default_factory=lambda: np.zeros(0))
+    ce: npt.NDArray[np.float64] = field(default_factory=lambda: np.zeros(0))
+    steps: list[ExtendedOptiStep] = field(default_factory=list)
+    compliance: list[float] = field(default_factory=list)
+    change: float = 1.0
+    stagnation: int = 0
+    early_exit: bool = False
+    snapshot: npt.NDArray[np.float64] | None = None
+    snapshot_compliance: float = float("inf")
+
+
+def _exploration_budget(cfg: "Beams2D.Config") -> int:
+    """Return the iterations left for exploration once the tail is carved out of ``max_iter``."""
+    return max(0, cfg.max_iter - _tail_iterations(cfg))
+
+
+def _tail_iterations(cfg: "Beams2D.Config") -> int:
+    """Return the length of the sharpening tail, never more than half the budget."""
+    if cfg.continuation == "fixed":
+        return 0
+    return max(0, min(cfg.tail_iters, cfg.max_iter // 2))
+
+
+def _make_tail(cfg: "Beams2D.Config") -> TailSpec | None:
+    """Build the sharpening tail for ``cfg``, or ``None`` when the budget leaves no room."""
+    iterations = _tail_iterations(cfg)
+    if iterations == 0:
+        return None
+    return TailSpec(
+        penal=cfg.tail_penal if cfg.tail_penal is not None else cfg.penal,
+        rmin=cfg.tail_rmin if cfg.tail_rmin is not None else cfg.rmin,
+        iterations=iterations,
+        beta=cfg.tail_beta,
+        move=cfg.tail_move,
+    )
+
+
+def _tail_kwargs(tail: TailSpec) -> dict[str, float]:
+    """Return the :class:`FixedController` arguments that hold ``tail`` constant."""
+    return {"penal": tail.penal, "beta": tail.beta, "rmin": tail.rmin, "move": tail.move}
+
+
+def _controller_initial(controller: ControllerLike, cfg: "Beams2D.Config") -> ControlSignal:
+    """Ask ``controller`` for its starting parameters, falling back to the configured ones."""
+    initialize = getattr(controller, "initialize", None)
+    if callable(initialize):
+        signal = initialize()
+        if signal is not None:
+            return signal
+    return ControlSignal(penal=cfg.penal_init, beta=cfg.beta_init, rmin=cfg.rmin, move=cfg.move_init)
+
+
+def _controller_tail(controller: ControllerLike, cfg: "Beams2D.Config") -> TailSpec | None:
+    """Ask ``controller`` for its sharpening tail; a plain callable gets the configured one."""
+    finalize = getattr(controller, "finalize", None)
+    if callable(finalize):
+        return finalize()
+    return _make_tail(cfg)
+
+
+def _final_compliance(history: list[ExtendedOptiStep]) -> float:
+    """Return the last recorded compliance of ``history``, or infinity when it is empty."""
+    return float(history[-1].obj_values[0]) if history else float("inf")
 
 
 def _initial_design(cfg: "Beams2D.Config", starting_point: npt.NDArray | None) -> npt.NDArray[np.float64]:
@@ -443,37 +609,30 @@ def _three_fields(
     return x_tilde, x_phys, x_print
 
 
-def _observe(  # noqa: PLR0913
-    cfg: "Beams2D.Config",
-    x_phys: npt.NDArray[np.float64],
-    compliance_history: list[float],
-    change: float,
-    stagnation: int,
-    loop: int,
-    signal: ControlSignal,
-) -> Observation:
+def _observe(cfg: "Beams2D.Config", run: "_RunState", budget: int, loop: int) -> Observation:
     """Assemble the observation the continuation controller sees before iteration ``loop``."""
     return Observation(
         iteration=loop,
-        max_iter=cfg.max_iter,
-        compliance=compliance_history[-1] if compliance_history else float("inf"),
-        best_compliance=min(compliance_history) if compliance_history else float("inf"),
-        grayness=grayness(x_phys),
-        volume_fraction=float(np.mean(x_phys)),
-        checkerboard=checkerboard_index(x_phys.reshape(cfg.nelx, cfg.nely)),
-        change=change,
-        stagnation=stagnation,
-        budget_used=loop / max(1, cfg.max_iter),
-        signal=signal,
+        max_iter=budget,
+        compliance=run.compliance[-1] if run.compliance else float("inf"),
+        best_compliance=min(run.compliance) if run.compliance else float("inf"),
+        grayness=grayness(run.x_print),
+        volume_fraction=float(np.mean(run.x_print)),
+        checkerboard=checkerboard_index(run.x_print.reshape(cfg.nelx, cfg.nely)),
+        change=run.change,
+        stagnation=run.stagnation,
+        budget_used=loop / max(1, budget),
+        signal=run.signal,
     )
 
 
-def _make_step(
+def _make_step(  # noqa: PLR0913
     obj_values: npt.NDArray[np.float64],
     loop: int,
     x_print: npt.NDArray[np.float64],
     signal: ControlSignal,
     attempt: int,
+    phase: str,
 ) -> ControlledOptiStep:
     """Record one optimization step together with the control signal that produced it."""
     step = ControlledOptiStep(obj_values=obj_values, step=loop)
@@ -483,6 +642,7 @@ def _make_step(
     step.rmin = signal.rmin
     step.move = signal.move
     step.attempt = attempt
+    step.phase = phase
     return step
 
 
@@ -578,29 +738,17 @@ def _oc_update(  # noqa: PLR0913
     return xnew
 
 
-def _is_better(
-    report: QualityReport,
-    history: list[ExtendedOptiStep],
-    best_report: QualityReport,
-    best_history: list[ExtendedOptiStep],
-) -> bool:
-    """Rank two attempts: passing beats failing, then fewer failed gates, then lower compliance."""
-    if report.passed != best_report.passed:
-        return report.passed
-    n_failed, n_failed_best = len(report.failed_checks), len(best_report.failed_checks)
-    if n_failed != n_failed_best:
-        return n_failed < n_failed_best
-    c = history[-1].obj_values[0] if history else float("inf")
-    c_best = best_history[-1].obj_values[0] if best_history else float("inf")
-    return bool(c < c_best)
-
-
 #: Upper bound on the iteration budget granted by the closed-loop retries.
 _MAX_ITER_CAP = 1000
 
 
 def _escalate(cfg: "Beams2D.Config", report: QualityReport) -> "Beams2D.Config":
     """Derive the settings of the next attempt from the checks that just failed.
+
+    Implements the rerun hints of the paper: a volume violation adjusts the
+    volume-fraction target by the observed deviation, and every other failure --
+    convergence, grayness, or no specific hint at all -- grows the iteration
+    budget by 30%.
 
     Args:
         cfg: The configuration of the attempt that failed.
@@ -612,20 +760,11 @@ def _escalate(cfg: "Beams2D.Config", report: QualityReport) -> "Beams2D.Config":
     failed = set(report.failed_checks)
     updates: dict[str, Any] = {}
 
-    if "connectivity" in failed:
-        # Thicker members are far more likely to stay connected.
-        updates["rmin"] = min(cfg.rmin * 1.25, float(max(cfg.nelx, cfg.nely)))
-    if "grayness" in failed:
-        updates["beta_max"] = min(cfg.beta_max * 2.0, 128.0)
-        if cfg.continuation == "fixed":
-            # The fixed controller ignores `beta_max`, so sharpen its constant instead.
-            updates["beta_init"] = min(cfg.beta_init * 2.0, updates["beta_max"])
-    if "compliance_ratio" in failed:
-        # Tail degradation: damp the steps that caused the oscillation.
-        updates["move_init"] = max(cfg.move_init * 0.5, 0.02)
-        updates["move_min"] = max(cfg.move_min * 0.5, 0.01)
-    if failed & {"convergence", "volume_fraction", "grayness", "connectivity"}:
-        updates["max_iter"] = min(int(cfg.max_iter * 1.5) + 1, _MAX_ITER_CAP)
+    if "volume_fraction" in failed:
+        deviation = report.metrics["volume_fraction"] - cfg.volfrac
+        updates["volfrac"] = float(np.clip(cfg.volfrac - deviation, 0.01, 0.99))
+    if failed - {"volume_fraction"}:
+        updates["max_iter"] = min(round(cfg.max_iter * 1.3) + 1, _MAX_ITER_CAP)
 
     return dataclasses.replace(cfg, **updates)
 

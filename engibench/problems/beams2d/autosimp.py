@@ -30,12 +30,11 @@ into, so the adaptive-control experiments of the paper can be reproduced
 without EngiBench itself calling a model.
 
 .. note::
-   The paper text was not reachable from this environment (``arxiv.org`` is
-   blocked by the network egress proxy), so the formulas for the individual
-   quality metrics follow the standard definitions from the topology
-   optimization literature that the paper builds on (Wang et al. 2011 for the
-   projection and the grayness measure :math:`M_{nd}`, morphological opening for
-   the length-scale check). Thresholds are the ones reported for AutoSiMP.
+   Where AutoSiMP's absolute solver values collide with an EngiBench *condition*
+   -- the penalization exponent ``penal`` and the filter radius ``rmin`` are part
+   of this problem's definition and of its datasets -- the condition wins and the
+   paper's value is offered as an opt-in default. This affects the sharpening
+   tail only; see :class:`TailSpec`.
 """
 
 from __future__ import annotations
@@ -63,7 +62,10 @@ __all__ = [
     "Observation",
     "QualityReport",
     "ScheduleController",
+    "TailSpec",
+    "ThreeFieldController",
     "checkerboard_index",
+    "connectivity_fraction",
     "density_filter",
     "evaluate",
     "filter_sensitivity",
@@ -72,7 +74,7 @@ __all__ = [
     "heaviside_projection",
     "load_elements",
     "load_path_efficiency",
-    "load_path_mask",
+    "reachable_from_supports",
     "support_elements",
     "thin_member_fraction",
 ]
@@ -223,10 +225,20 @@ class Controller(Protocol):
     """Direct Numeric Control interface: map an :class:`Observation` to a :class:`ControlSignal`.
 
     Any callable with this signature can be handed to
-    ``Beams2D.optimize(controller=...)``. AutoSiMP compares a fixed baseline, a
-    deterministic schedule and an LLM agent through exactly this interface; the
-    first two are provided as :class:`FixedController` and
-    :class:`ScheduleController`, an LLM agent is supplied by the user.
+    ``Beams2D.optimize(controller=...)``. AutoSiMP compares six controllers -- an
+    LLM agent, a deterministic schedule, an expert heuristic, the standard
+    three-field continuation, a tail-only ablation and a fixed baseline --
+    through exactly this interface; :class:`ScheduleController`,
+    :class:`ThreeFieldController` and :class:`FixedController` are provided here,
+    an LLM agent is supplied by the user.
+
+    Three further methods are optional and are used when present:
+
+    * ``initialize() -> ControlSignal`` -- the starting parameters, used before the
+      first observation exists. Defaults to the configured initial values.
+    * ``finalize() -> TailSpec | None`` -- the sharpening tail to run after the main
+      loop, restarting from the best valid snapshot. ``None`` means no tail.
+    * ``reset() -> None`` -- clear any state carried over from a previous attempt.
     """
 
     def __call__(self, observation: Observation) -> ControlSignal:
@@ -234,9 +246,48 @@ class Controller(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class TailSpec:
+    r"""The sharpening tail that every non-fixed AutoSiMP controller shares.
+
+    The paper runs an identical 40-iteration tail at :math:`p = 4.5`,
+    :math:`\beta = 32`, :math:`r_{\min} = 1.20` and :math:`\delta = 0.05`,
+    restarting from the best snapshot that satisfied the validity gate, so that
+    compliance differences between controllers are attributable to the
+    exploration phase alone.
+
+    In EngiBench ``penal`` and ``rmin`` are *conditions*: they are part of the
+    problem definition and of the datasets keyed on it. The tail therefore keeps
+    whatever the conditions ask for by default, and the paper's ``4.5`` / ``1.20``
+    are reached by setting ``tail_penal`` and ``tail_rmin`` explicitly. ``beta``
+    and ``move`` are pure solver knobs and take the paper's values.
+
+    Attributes:
+        penal: Penalization exponent held for the whole tail.
+        rmin: Filter radius held for the whole tail.
+        iterations: Length of the tail.
+        beta: Projection sharpness held for the whole tail.
+        move: Optimality-criteria move limit held for the whole tail.
+    """
+
+    penal: float
+    rmin: float
+    iterations: int = 40
+    beta: float = 32.0
+    move: float = 0.05
+
+    def signal(self) -> ControlSignal:
+        """Return the constant control signal of the tail."""
+        return ControlSignal(penal=self.penal, beta=self.beta, rmin=self.rmin, move=self.move)
+
+
 @dataclass
 class FixedController:
-    """Baseline controller: hold all four parameters constant for the whole run.
+    r"""Baseline controller: hold all four parameters constant and run no tail.
+
+    This is AutoSiMP's true no-intervention baseline, which the paper runs at
+    :math:`p = 3` and :math:`\beta = 1` and which produces gray, unconverged
+    designs.
 
     Attributes:
         penal: Constant penalization exponent.
@@ -255,50 +306,78 @@ class FixedController:
         del observation
         return ControlSignal(penal=self.penal, beta=self.beta, rmin=self.rmin, move=self.move)
 
+    def initialize(self) -> ControlSignal:
+        """Return the constant control signal."""
+        return ControlSignal(penal=self.penal, beta=self.beta, rmin=self.rmin, move=self.move)
+
+    def finalize(self) -> TailSpec | None:
+        """Return ``None``: the fixed baseline deliberately runs no sharpening tail."""
+        return None
+
 
 @dataclass
 class ScheduleController:
-    """Deterministic continuation schedule -- AutoSiMP's non-LLM reference controller.
+    """AutoSiMP's deterministic schedule -- the recommended default controller.
 
-    The schedule is *budget aware*: both continuations are expressed as fractions
-    of ``max_iter`` so that a short run still reaches the target penalization and
-    sharpness instead of stopping half way through the ramp.
+    It reproduces the four-stage phase structure of the LLM agent with
+    pre-computed values, which is the paper's key ablation: it isolates the
+    contribution of the phase structure from the LLM's adaptive decisions, and
+    reaches a 100% pass rate at only +1.5% median compliance over the LLM agent.
 
-    * **Penalization**: stepped from ``penal_init`` to ``penal_target`` in
-      increments of ``penal_step``, spread evenly over the first
-      ``penal_fraction`` of the budget.
-    * **Sharpness**: doubled from ``beta_init`` up to ``beta_max`` at evenly
-      spaced iterations, and doubled early whenever the design stagnates, which
-      is the classical trigger of Wang et al. (2011).
-    * **Move limit**: decayed linearly from ``move_init`` to ``move_min`` over the
-      budget, which damps the late-iteration oscillations the compliance-ratio
-      gate is designed to catch.
-    * **Filter radius**: held at ``rmin``.
+    The phases are expressed as fractions of the exploration budget, so a short
+    run still traverses all four instead of stopping half way through:
+
+    * **exploration** (to ``exploration_end``): low penalization and a mild
+      projection, to discover a topology rather than commit to one.
+    * **penalization** (to ``penalization_end``): ``penal`` stepped up to its
+      target in ``penal_step`` increments.
+    * **sharpening** (to ``sharpening_end``): ``beta`` doubled geometrically up to
+      ``beta_max``.
+    * **convergence** (the remainder): both held at their targets and the move
+      limit dropped to ``move_min`` to settle the design.
+
+    ``beta`` is additionally doubled early whenever the design stagnates, the
+    classical trigger of Wang et al. (2011). The sharpening tail returned by
+    :meth:`finalize` then takes over.
+
+    .. note::
+       The paper names the four phases but takes their numeric values from its
+       companion controller paper (arXiv:2603.25099), which it does not reproduce.
+       The default fractions here were chosen on a grid of Beams2D conditions and
+       validated on a disjoint one, not read off the paper.
+       :class:`ThreeFieldController` implements the one baseline whose values the
+       paper does state in full.
 
     Attributes:
         penal_target: Final penalization exponent.
-        rmin: Filter radius (constant).
-        max_iter: Iteration budget the schedule is stretched over.
+        rmin: Filter radius (constant; the tail may change it).
+        max_iter: Exploration budget the phases are stretched over.
+        tail: The sharpening tail, or ``None`` to run none.
         penal_init: Initial penalization exponent.
         penal_step: Increment of the penalization continuation.
-        penal_fraction: Fraction of the budget over which ``penal`` reaches its target.
         beta_init: Initial projection sharpness.
-        beta_max: Maximum projection sharpness.
+        beta_max: Maximum projection sharpness of the exploration phase.
         move_init: Initial move limit.
-        move_min: Final move limit.
+        move_min: Move limit of the convergence phase.
+        exploration_end: Fraction of the budget at which the exploration phase ends.
+        penalization_end: Fraction of the budget at which the penalization phase ends.
+        sharpening_end: Fraction of the budget at which the sharpening phase ends.
         stagnation_trigger: Consecutive stagnating iterations that force a ``beta`` doubling.
     """
 
     penal_target: float
     rmin: float
     max_iter: int
+    tail: TailSpec | None = None
     penal_init: float = 1.0
     penal_step: float = 0.5
-    penal_fraction: float = 0.4
     beta_init: float = 1.0
     beta_max: float = 16.0
     move_init: float = 0.2
     move_min: float = 0.05
+    exploration_end: float = 0.15
+    penalization_end: float = 0.55
+    sharpening_end: float = 0.85
     stagnation_trigger: int = 2
 
     _extra_doublings: int = field(default=0, init=False, repr=False)
@@ -309,6 +388,14 @@ class ScheduleController:
         self._extra_doublings = 0
         self._last_doubling = -1
 
+    def initialize(self) -> ControlSignal:
+        """Return the parameters of the first iteration."""
+        return ControlSignal(penal=self.penal_init, beta=self.beta_init, rmin=self.rmin, move=self.move_init)
+
+    def finalize(self) -> TailSpec | None:
+        """Return the sharpening tail to run after the exploration budget."""
+        return self.tail
+
     @property
     def n_doublings(self) -> int:
         """Number of doublings needed to go from ``beta_init`` to ``beta_max``."""
@@ -316,21 +403,36 @@ class ScheduleController:
             return 0
         return math.ceil(math.log2(self.beta_max / self.beta_init))
 
+    def _progress(self, iteration: int) -> float:
+        return min(1.0, iteration / max(1, self.max_iter))
+
     def _penal(self, iteration: int) -> float:
+        progress = self._progress(iteration)
+        if progress < self.exploration_end:
+            return float(self.penal_init)
+        span = max(self.penalization_end - self.exploration_end, 1e-12)
+        ramp = min(1.0, (progress - self.exploration_end) / span)
         n_steps = max(1, math.ceil((self.penal_target - self.penal_init) / max(self.penal_step, 1e-12)))
-        ramp = max(1, round(self.penal_fraction * self.max_iter))
-        step = int(iteration * n_steps / ramp)
+        step = min(n_steps, int(ramp * n_steps))
         return float(min(self.penal_target, self.penal_init + step * self.penal_step))
 
     def _beta(self, iteration: int) -> float:
         n = self.n_doublings
-        scheduled = 0 if n == 0 else int(iteration * (n + 1) / max(1, self.max_iter))
+        progress = self._progress(iteration)
+        if progress < self.penalization_end:
+            scheduled = 0
+        elif progress >= self.sharpening_end:
+            scheduled = n
+        else:
+            span = max(self.sharpening_end - self.penalization_end, 1e-12)
+            scheduled = min(n, int((progress - self.penalization_end) / span * (n + 1)))
         doublings = min(n, scheduled + self._extra_doublings)
         return float(min(self.beta_max, self.beta_init * 2.0**doublings))
 
     def _move(self, iteration: int) -> float:
-        progress = min(1.0, iteration / max(1, self.max_iter))
-        return float(self.move_init + (self.move_min - self.move_init) * progress)
+        if self._progress(iteration) >= self.sharpening_end:
+            return float(self.move_min)
+        return float(self.move_init)
 
     def __call__(self, observation: Observation) -> ControlSignal:
         """Return the scheduled control signal for ``observation.iteration``."""
@@ -347,6 +449,66 @@ class ScheduleController:
             rmin=self.rmin,
             move=self._move(observation.iteration),
         )
+
+
+@dataclass
+class ThreeFieldController:
+    """The standard academic three-field continuation, AutoSiMP's baseline 4.
+
+    The paper states this baseline in full: a linear ``penal`` ramp from
+    ``penal_init`` to ``penal_target`` over ``penal_ramp`` iterations, geometric
+    ``beta`` doubling every ``beta_interval`` iterations, and a late tightening of
+    the filter radius. It follows Wang et al. (2011) and Lazarov et al. (2016).
+
+    ``rmin_final`` defaults to ``rmin``, i.e. no tightening, because ``rmin`` is an
+    EngiBench condition; set it explicitly to reproduce the paper's late
+    tightening.
+
+    Attributes:
+        penal_target: Final penalization exponent.
+        rmin: Filter radius before the late tightening.
+        max_iter: Exploration budget.
+        tail: The sharpening tail, or ``None`` to run none.
+        penal_init: Initial penalization exponent.
+        penal_ramp: Number of iterations the linear ``penal`` ramp spans.
+        beta_init: Initial projection sharpness.
+        beta_max: Maximum projection sharpness.
+        beta_interval: Iterations between two ``beta`` doublings.
+        move: Constant move limit.
+        rmin_final: Filter radius after the late tightening.
+        tighten_at: Fraction of the budget at which the radius is tightened.
+    """
+
+    penal_target: float
+    rmin: float
+    max_iter: int
+    tail: TailSpec | None = None
+    penal_init: float = 1.0
+    penal_ramp: int = 30
+    beta_init: float = 1.0
+    beta_max: float = 16.0
+    beta_interval: int = 10
+    move: float = 0.2
+    rmin_final: float | None = None
+    tighten_at: float = 0.75
+
+    def initialize(self) -> ControlSignal:
+        """Return the parameters of the first iteration."""
+        return ControlSignal(penal=self.penal_init, beta=self.beta_init, rmin=self.rmin, move=self.move)
+
+    def finalize(self) -> TailSpec | None:
+        """Return the sharpening tail to run after the exploration budget."""
+        return self.tail
+
+    def __call__(self, observation: Observation) -> ControlSignal:
+        """Return the continuation signal for ``observation.iteration``."""
+        k = observation.iteration
+        ramp = min(1.0, k / max(1, self.penal_ramp))
+        penal = self.penal_init + ramp * (self.penal_target - self.penal_init)
+        beta = min(self.beta_max, self.beta_init * 2.0 ** (k // max(1, self.beta_interval)))
+        late = k >= self.tighten_at * max(1, self.max_iter)
+        rmin = self.rmin_final if (late and self.rmin_final is not None) else self.rmin
+        return ControlSignal(penal=float(penal), beta=float(beta), rmin=float(rmin), move=self.move)
 
 
 # --------------------------------------------------------------------------------------
@@ -397,38 +559,29 @@ def checkerboard_index(x_2d: npt.NDArray[np.float64]) -> float:
     return float(np.mean(np.abs(a - b - c + d)) / 2.0)
 
 
-def _disk(radius: float) -> npt.NDArray[np.bool_]:
-    """Boolean disk structuring element of the given radius (at least one element wide)."""
-    r = max(1, math.floor(radius))
-    yy, xx = np.mgrid[-r : r + 1, -r : r + 1]
-    return (xx**2 + yy**2) <= max(radius, 1.0) ** 2 + 1e-9
+def thin_member_fraction(x_2d: npt.NDArray[np.float64], threshold: float = 0.5) -> float:
+    """Fraction of the solid material sitting in one-element-wide connections (metric 6).
 
-
-def thin_member_fraction(x_2d: npt.NDArray[np.float64], rmin: float, threshold: float = 0.5) -> float:
-    """Fraction of the solid material sitting in members thinner than the length scale.
-
-    Computed by a morphological opening of the thresholded design with a disk of
-    radius ``rmin / 2``: material that the opening removes belongs to features
-    narrower than the filter's length scale.
+    An element counts as one-element-wide when both of its neighbours along at
+    least one axis are void, the domain boundary counting as void. Such elements
+    are the members a mesh refinement would not resolve.
 
     Args:
         x_2d: Physical density field as a 2D array.
-        rmin: Filter radius, i.e. the requested minimum feature length.
         threshold: Density above which an element counts as solid.
 
     Returns:
-        float: The fraction of solid elements in thin members, in ``[0, 1]``.
+        float: The fraction of solid elements in one-element-wide members, in ``[0, 1]``.
     """
     solid = np.asarray(x_2d, dtype=float) >= threshold
     n_solid = int(solid.sum())
     if n_solid == 0:
         return 0.0
-    disk = _disk(rmin / 2.0)
-    # `border_value=1` keeps material that merely touches the domain boundary from being
-    # reported as thin: the boundary is a support, not void.
-    eroded = ndimage.binary_erosion(solid, structure=disk, border_value=1)
-    opened = ndimage.binary_dilation(eroded, structure=disk)
-    return float(np.logical_and(solid, ~opened).sum() / n_solid)
+    padded = np.pad(solid, 1, constant_values=False)
+    left, right = padded[:-2, 1:-1], padded[2:, 1:-1]
+    up, down = padded[1:-1, :-2], padded[1:-1, 2:]
+    thin = solid & ((~left & ~right) | (~up & ~down))
+    return float(thin.sum() / n_solid)
 
 
 def support_elements(st: State, nelx: int, nely: int) -> npt.NDArray[np.bool_]:
@@ -473,17 +626,94 @@ def _elements_of_nodes(nodes: npt.NDArray[np.int_], nelx: int, nely: int) -> npt
     return mask
 
 
-def load_path_mask(
+def reachable_from_supports(
+    x_2d: npt.NDArray[np.float64],
+    supports: npt.NDArray[np.bool_],
+    threshold: float = 0.5,
+) -> npt.NDArray[np.bool_]:
+    """Solid elements a flood fill from the supports can reach.
+
+    Args:
+        x_2d: Physical density field, shape ``(nelx, nely)``.
+        supports: Mask of support-adjacent elements, same shape.
+        threshold: Density above which an element counts as solid.
+
+    Returns:
+        npt.NDArray: Boolean mask of the reached solid elements.
+    """
+    solid = np.asarray(x_2d, dtype=float) >= threshold
+    labels, n_labels = ndimage.label(solid, structure=_CROSS)
+    if n_labels == 0:
+        return np.zeros_like(solid)
+    seeded = sorted(set(np.unique(labels[solid & supports]).tolist()) - {0})
+    if not seeded:
+        return np.zeros_like(solid)
+    return np.isin(labels, seeded) & solid
+
+
+def connectivity_fraction(
+    x_2d: npt.NDArray[np.float64],
+    supports: npt.NDArray[np.bool_],
+    threshold: float = 0.5,
+) -> float:
+    r"""Share of the solid material a flood fill from the supports reaches (gate 1).
+
+    .. math::
+       f_{\mathrm{conn}} = \frac{|\{e : \tilde{\rho}_e > 0.5 \text{ and } e \text{ reached}\}|}
+                                {|\{e : \tilde{\rho}_e > 0.5\}|}
+
+    The flood fill uses 4-connectivity. A value below one means part of the solid
+    material floats free of the supports.
+
+    Args:
+        x_2d: Physical density field, shape ``(nelx, nely)``.
+        supports: Mask of support-adjacent elements, same shape.
+        threshold: Density above which an element counts as solid.
+
+    Returns:
+        float: The connectivity fraction, in ``[0, 1]``; ``0`` for an all-void design.
+    """
+    solid = np.asarray(x_2d, dtype=float) >= threshold
+    n_solid = int(solid.sum())
+    if n_solid == 0:
+        return 0.0
+    return float(reachable_from_supports(x_2d, supports, threshold).sum() / n_solid)
+
+
+def _bfs_distances(solid: npt.NDArray[np.bool_], seeds: npt.NDArray[np.bool_]) -> npt.NDArray[np.float64]:
+    """4-connected BFS distance, in element steps, from ``seeds`` through ``solid``."""
+    dist = np.full(solid.shape, np.inf)
+    frontier = list(zip(*np.nonzero(seeds & solid), strict=True))
+    for i, j in frontier:
+        dist[i, j] = 0.0
+    nelx, nely = solid.shape
+    step = 0.0
+    while frontier:
+        step += 1.0
+        nxt = []
+        for i, j in frontier:
+            for di, dj in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                a, b = i + di, j + dj
+                if 0 <= a < nelx and 0 <= b < nely and solid[a, b] and dist[a, b] > step:
+                    dist[a, b] = step
+                    nxt.append((a, b))
+        frontier = nxt
+    return dist
+
+
+def load_path_efficiency(
     x_2d: npt.NDArray[np.float64],
     supports: npt.NDArray[np.bool_],
     loads: npt.NDArray[np.bool_],
     threshold: float = 0.5,
-) -> npt.NDArray[np.bool_]:
-    """Solid elements of the connected components that link a support to a load.
+) -> float:
+    """Detour factor of the load path: BFS path length over Euclidean distance (metric 8).
 
-    A 4-neighbour flood fill is run on the thresholded design; a component is
-    part of the load path when it touches both a constrained node and a loaded
-    node. An empty mask therefore means the design is disconnected.
+    A 4-connected BFS runs from the loaded elements through solid material to the
+    nearest reachable support element; the number of steps it needs is divided by
+    the straight-line distance between those two elements. The ideal value is
+    ``1.0`` (a straight load path); larger values mean the force detours. Returns
+    infinity when no support is reachable from the load.
 
     Args:
         x_2d: Physical density field, shape ``(nelx, nely)``.
@@ -492,44 +722,23 @@ def load_path_mask(
         threshold: Density above which an element counts as solid.
 
     Returns:
-        npt.NDArray: Boolean mask of the load-carrying elements.
+        float: The ratio of the BFS path length to the Euclidean distance.
     """
     solid = np.asarray(x_2d, dtype=float) >= threshold
-    labels, n_labels = ndimage.label(solid, structure=_CROSS)
-    if n_labels == 0:
-        return np.zeros_like(solid)
-    support_labels = set(np.unique(labels[solid & supports]).tolist())
-    load_labels = set(np.unique(labels[solid & loads]).tolist())
-    common = sorted((support_labels & load_labels) - {0})
-    if not common:
-        return np.zeros_like(solid)
-    return np.isin(labels, common)
-
-
-def load_path_efficiency(
-    x_2d: npt.NDArray[np.float64],
-    energy_2d: npt.NDArray[np.float64],
-    path: npt.NDArray[np.bool_],
-) -> float:
-    """Share of the total strain energy carried by the connected load path.
-
-    Values close to one mean that essentially all of the stored energy sits in
-    material that actually connects the loads to the supports; a low value
-    signals disconnected or parasitic material.
-
-    Args:
-        x_2d: Physical density field, shape ``(nelx, nely)`` (unused, kept for symmetry).
-        energy_2d: Element-wise strain energy, same shape.
-        path: Mask of the load-carrying elements, same shape.
-
-    Returns:
-        float: The load-path efficiency, in ``[0, 1]``.
-    """
-    del x_2d
-    total = float(np.sum(energy_2d))
-    if total <= 0.0:
-        return 0.0
-    return float(np.sum(energy_2d[path]) / total)
+    if not (solid & loads).any() or not (solid & supports).any():
+        return math.inf
+    dist = _bfs_distances(solid, loads)
+    reachable = solid & supports & np.isfinite(dist)
+    if not reachable.any():
+        return math.inf
+    candidates = np.array(np.nonzero(reachable)).T
+    target = candidates[int(np.argmin(dist[reachable]))]
+    path = float(dist[target[0], target[1]])
+    sources = np.array(np.nonzero(solid & loads)).T
+    euclidean = float(np.min(np.linalg.norm(sources - target, axis=1)))
+    if euclidean <= 0.0:
+        return 1.0
+    return path / euclidean
 
 
 # --------------------------------------------------------------------------------------
@@ -609,14 +818,13 @@ class QualityReport:
 
 def evaluate(  # noqa: PLR0913
     x_2d: npt.NDArray[np.float64],
-    energy_2d: npt.NDArray[np.float64],
     st: State,
     *,
     volfrac: float,
-    rmin: float,
     compliance_history: list[float],
     early_exit: bool,
     attempt: int = 0,
+    connectivity_tol: float = 0.99,
     grayness_tol: float = 0.15,
     volfrac_tol: float = 0.02,
     compliance_ratio_tol: float = 2.0,
@@ -624,21 +832,23 @@ def evaluate(  # noqa: PLR0913
     stability_window: int = 10,
     threshold: float = 0.5,
 ) -> QualityReport:
-    """Run the eight-check structural evaluator on a finished optimization.
+    """Run the eight-check structural evaluator of AutoSiMP (its Table 2) on a finished solve.
 
     Args:
         x_2d: Final physical density field, shape ``(nelx, nely)``.
-        energy_2d: Element-wise strain energy of the final design, same shape.
         st: State holding the boundary conditions (used for supports and loads).
         volfrac: Target volume fraction.
-        rmin: Filter radius, i.e. the requested minimum feature length.
         compliance_history: Compliance recorded at every iteration.
         early_exit: Whether the solver stopped on its change tolerance rather than
             exhausting the iteration budget.
         attempt: Zero-based index of the solver attempt being evaluated.
-        grayness_tol: Maximum admissible :math:`M_{nd}`.
-        volfrac_tol: Maximum admissible *relative* deviation from ``volfrac``.
-        compliance_ratio_tol: Maximum admissible ``final / best`` compliance ratio.
+        connectivity_tol: Minimum admissible connectivity fraction.
+        grayness_tol: Maximum admissible grayness index :math:`G`.
+        volfrac_tol: Maximum admissible *absolute* deviation from ``volfrac``.
+        compliance_ratio_tol: Maximum admissible ``final / best`` compliance ratio. Note that the
+            best compliance is normally reached early, while the penalization is still low and the
+            field still gray, so this gate charges the cost of binarizing as well as any genuine
+            degradation in the tail; raise it to isolate the latter.
         stability_tol: Maximum admissible relative range of the last compliances.
         stability_window: Number of trailing iterations used for the stability test.
         threshold: Density above which an element counts as solid.
@@ -649,8 +859,7 @@ def evaluate(  # noqa: PLR0913
     nelx, nely = x_2d.shape
     supports = support_elements(st, nelx, nely)
     loads = load_elements(st, nelx, nely)
-    path = load_path_mask(x_2d, supports, loads, threshold=threshold)
-    connected = bool(path.any())
+    f_conn = connectivity_fraction(x_2d, supports, threshold=threshold)
 
     history = [float(c) for c in compliance_history]
     final_c = history[-1] if history else math.inf
@@ -659,7 +868,7 @@ def evaluate(  # noqa: PLR0913
 
     gray = grayness(x_2d)
     actual_volfrac = float(np.mean(x_2d))
-    volfrac_dev = abs(actual_volfrac - volfrac) / volfrac if volfrac > 0 else math.inf
+    volfrac_dev = abs(actual_volfrac - volfrac)
 
     window = history[-stability_window:]
     if len(window) >= 2:  # noqa: PLR2004
@@ -673,35 +882,34 @@ def evaluate(  # noqa: PLR0913
     functional = gray <= grayness_tol and volfrac_dev <= volfrac_tol and stability <= 10.0 * stability_tol
     converged = early_exit or stability < stability_tol or functional
 
-    energy = np.asarray(energy_2d, dtype=float)
     checks = {
         "connectivity": CheckResult(
             name="connectivity",
-            value=float(connected),
-            threshold=None,
-            passed=connected,
-            detail="4-neighbour flood fill links a loaded node to a constrained node",
+            value=f_conn,
+            threshold=connectivity_tol,
+            passed=f_conn >= connectivity_tol,
+            detail="share of the solid material reached by a 4-neighbour flood fill from the supports",
         ),
         "compliance_ratio": CheckResult(
             name="compliance_ratio",
             value=ratio,
             threshold=compliance_ratio_tol,
             passed=ratio < compliance_ratio_tol,
-            detail="final compliance relative to the best compliance seen (tail degradation)",
+            detail="final compliance relative to the best compliance seen over the whole run",
         ),
         "grayness": CheckResult(
             name="grayness",
             value=gray,
             threshold=grayness_tol,
             passed=gray <= grayness_tol,
-            detail="non-discreteness measure M_nd of the final density field",
+            detail="grayness index G of the final density field",
         ),
         "volume_fraction": CheckResult(
             name="volume_fraction",
             value=actual_volfrac,
             threshold=volfrac_tol,
             passed=volfrac_dev <= volfrac_tol,
-            detail=f"relative deviation {volfrac_dev:.4f} from the target {volfrac:.4f}",
+            detail=f"absolute deviation {volfrac_dev:.4f} from the target {volfrac:.4f}",
         ),
         "convergence": CheckResult(
             name="convergence",
@@ -712,11 +920,11 @@ def evaluate(  # noqa: PLR0913
         ),
         "thin_member_fraction": CheckResult(
             name="thin_member_fraction",
-            value=thin_member_fraction(x_2d, rmin, threshold=threshold),
+            value=thin_member_fraction(x_2d, threshold=threshold),
             threshold=None,
             passed=True,
             informational=True,
-            detail="solid material in members narrower than the filter length scale",
+            detail="solid material in one-element-wide connections",
         ),
         "checkerboard_index": CheckResult(
             name="checkerboard_index",
@@ -724,15 +932,15 @@ def evaluate(  # noqa: PLR0913
             threshold=None,
             passed=True,
             informational=True,
-            detail="mean strength of the alternating pattern over 2x2 blocks",
+            detail="diagonal contrast over 2x2 element blocks",
         ),
         "load_path_efficiency": CheckResult(
             name="load_path_efficiency",
-            value=load_path_efficiency(x_2d, energy, path),
+            value=load_path_efficiency(x_2d, supports, loads, threshold=threshold),
             threshold=None,
             passed=True,
             informational=True,
-            detail="share of the strain energy carried by the connected load path",
+            detail="BFS path length from the load to the nearest support over their Euclidean distance",
         ),
     }
     return QualityReport(checks=checks, attempt=attempt)

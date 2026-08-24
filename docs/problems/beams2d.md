@@ -84,18 +84,52 @@ Three further AutoSiMP components come with it:
   (compliance, best compliance, grayness, volume fraction, checkerboard index, stagnation counter,
   budget consumption) and returns the four *Direct Numeric Control* parameters: the penalization
   exponent $p$, the projection sharpness $\beta$, the filter radius $r_{\min}$ and the optimality
-  criteria move limit $\delta$. `continuation="schedule"` (the default) is the deterministic,
-  budget-aware continuation; `continuation="fixed"` is the no-continuation baseline; and any callable
-  can be handed to `optimize(controller=...)`, which is where an LLM agent plugs in.
+  criteria move limit $\delta$. Three controllers ship with the problem, selected by
+  `continuation`:
+
+  | `continuation` | Behaviour |
+  | --- | --- |
+  | `"schedule"` (default) | The paper's deterministic four-phase schedule: exploration → penalization → sharpening → convergence, plus the sharpening tail. |
+  | `"three_field"` | The standard academic continuation the paper uses as its baseline 4: linear $p$ ramp over 30 iterations, geometric $\beta$ doubling every 10, optional late $r_{\min}$ tightening. |
+  | `"fixed"` | The no-intervention baseline: constant parameters and no tail. Produces gray, unconverged designs. |
+
+  Any callable mapping an `Observation` to a `ControlSignal` can be passed to
+  `optimize(controller=...)` instead — that is where an LLM agent plugs in. A controller may also
+  expose `initialize()`, `finalize()` (its sharpening tail) and `reset()`.
+
+* **Sharpening tail and validity gate.** Every non-fixed controller ends with a short tail at high
+  sharpness and a small move limit, restarted from the best snapshot that reached the target
+  penalization while satisfying the volume constraint (or from uniform density if there is none).
+  The paper reports the tail as the primary driver of final topology quality, and that is borne out
+  here: removing it raises mean compliance and roughly quintuples the residual grayness.
+
 * **Eight-check structural evaluator**, described below.
-* **Closed-loop retry.** When a gating check fails, the solver escalates its own settings (filter
-  radius, sharpness cap, move limit, iteration budget) and re-runs, up to `max_retries` times, keeping
-  the best attempt.
+
+* **Closed-loop retry.** When a gating check fails, the evaluator emits a rerun hint — grow the
+  iteration budget by 30%, or adjust the volume target by the observed deviation — and the solve is
+  repeated, up to `max_retries` times. The lowest-compliance attempt is returned, and the loop stops
+  as soon as one passes.
 
 The two remaining AutoSiMP modules -- the LLM configurator that parses a plain-English prompt and the
 boundary-condition generator that turns the resulting specification into solver arrays -- are not
 reimplemented here: the validated specification they produce is precisely what EngiBench's
 `Conditions` dataclass already is, and EngiBench does not depend on an LLM provider.
+
+### Deviations from the paper
+Three of the paper's absolute solver values are EngiBench *conditions* — part of the problem
+definition and of the datasets keyed on it — so the condition wins by default and the paper's value
+is one config entry away:
+
+| Quantity | Paper | Default here | Why |
+| --- | --- | --- | --- |
+| Tail penalization | $p = 4.5$ | `tail_penal = penal` (3.0) | `penal` defines the reported objective; the datasets and `simulate` use 3.0. |
+| Tail filter radius | $r_{\min} = 1.20$ | `tail_rmin = rmin` | `rmin` *is* the requested minimum feature length; tightening it would violate the condition. |
+| Iteration budget | 300 + 40 tail | `max_iter = 100`, tail carved out of it | `max_iter` keeps its v0/v1 meaning as the total budget. |
+
+The tail's $\beta = 32$ and $\delta = 0.05$ are pure solver knobs and take the paper's values. The
+four phase boundaries of the schedule controller are not stated in the paper (it defers to its
+companion controller paper); the defaults here were chosen on a grid of Beams2D conditions and
+validated on a disjoint grid.
 
 ## Quality Evaluation
 `optimize` runs the eight-check structural evaluator on its result and stores the outcome in
@@ -104,18 +138,22 @@ design can also be checked directly with `problem.evaluate_quality(design)`.
 
 Five checks gate a run:
 
-| Check | Criterion | Default threshold |
+| Check | Criterion | Threshold |
 | --- | --- | --- |
-| `connectivity` | a 4-neighbour flood fill on the thresholded design links a loaded node to a constrained node | — |
-| `compliance_ratio` | final compliance over the best compliance seen (tail degradation) | `< 2.0` |
-| `grayness` | non-discreteness $M_{nd} = \frac{1}{n}\sum_e 4x_e(1-x_e)$ | `<= 0.15` |
-| `volume_fraction` | relative deviation from the target volume fraction | `<= 2%` |
-| `convergence` | early exit on the change tolerance, compliance stability, or functional convergence | relative range `< 0.005` |
+| `connectivity` | $f_{\mathrm{conn}} = \lvert\{e : \tilde{\rho}_e > 0.5 \text{ and reached}\}\rvert / \lvert\{e : \tilde{\rho}_e > 0.5\}\rvert$, by 4-neighbour flood fill from the supports | $\geq 0.99$ |
+| `compliance_ratio` | $C_{\mathrm{final}} / C_{\mathrm{best}}$ | $< 2.0$ |
+| `grayness` | $G = \frac{4}{N_e}\sum_e \tilde{\rho}_e(1-\tilde{\rho}_e)$ | $\leq 0.15$ |
+| `volume_fraction` | $\lvert V_{f,\mathrm{actual}} - V_f\rvert$ (absolute) | $\leq 0.02$ |
+| `convergence` | early exit, compliance stability, or functional convergence | relative range $< 0.005$ |
 
-Three further metrics are recorded for information only and never gate: `thin_member_fraction` (solid
-material in members narrower than the filter length scale, measured by a morphological opening),
-`checkerboard_index` (mean strength of the alternating pattern over $2\times2$ blocks) and
-`load_path_efficiency` (share of the strain energy carried by the connected load path).
+Three further metrics are recorded for information only and never gate: `thin_member_fraction` (share
+of the solid material in one-element-wide connections), `checkerboard_index` (diagonal contrast over
+$2\times2$ element blocks) and `load_path_efficiency` (BFS path length from the load to the nearest
+reachable support divided by their Euclidean distance; $1.0$ is a straight load path).
+
+Note that $C_{\mathrm{best}}$ is normally attained early, while the penalization is still low and the
+field still gray, so `compliance_ratio` charges the cost of binarizing as well as any genuine
+degradation in the tail.
 
 ## Dataset
 This problem offers multiple datasets for various sizes of `nelx` and `nely`. Each dataset includes
@@ -146,11 +184,11 @@ A more comprehensive description of the creation method can be found in the [REA
 - **v0** -- the original density-filter optimizer with an optimality criteria update.
 - **v1** -- identical to v0 apart from a fix to the warm-start path, which adds a small epsilon to the
   provided design to avoid zero-density gradient issues. The datasets are unchanged.
-- **v2** -- the AutoSiMP three-field solver, continuation controllers, structural evaluator and
-  closed-loop retry described above. `simulate` is unchanged, so the v0 datasets remain valid and
-  objective values stay comparable; only `optimize` behaves differently. On the default $100\times50$
-  problem it reaches both a markedly lower compliance and a near-binary design where v0/v1 leave a
-  substantially gray field.
+- **v2** -- the AutoSiMP three-field solver, continuation controllers, sharpening tail, structural
+  evaluator and closed-loop retry described above. `simulate` is unchanged, so the v0 datasets remain
+  valid and objective values stay comparable; only `optimize` behaves differently. Across a grid of
+  20 condition sets on the default $100\times50$ mesh at the default budget, v2 lowers compliance on
+  every one of them relative to v1 and cuts the mean grayness from $0.15$ to below $0.01$.
 
 ## Citation
 This problem is directly refactored from the [TopOpt-MMA-Python Library](https://github.com/arjendeetman/TopOpt-MMA-Python) and if you use this problem in your experiments, you can use the citations below referencing both the original problem formulation and the subsequent well-known implementation:
@@ -181,6 +219,13 @@ This problem is directly refactored from the [TopOpt-MMA-Python Library](https:/
 The v2 optimizer additionally follows the three-field solver, the structural evaluator and the
 continuation control of AutoSiMP, whose projection scheme is the one of Wang et al. (2011):
 ```
+@article{yang2026controllers,
+  title={Large Language Models as Optimization Controllers: Adaptive Continuation for SIMP Topology Optimization},
+  author={Yang, Shaoliang and Wang, Jun and Wang, Yunsheng},
+  journal={arXiv preprint arXiv:2603.25099},
+  year={2026}
+}
+
 @article{yang2026autosimp,
   title={AutoSiMP: Autonomous Topology Optimization from Natural Language via LLM-Driven Problem Configuration and Adaptive Solver Control},
   author={Yang, Shaoliang and Wang, Jun and Wang, Yunsheng},
